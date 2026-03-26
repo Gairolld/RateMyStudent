@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from pymongo import MongoClient
 
 load_dotenv()
@@ -62,12 +62,14 @@ def profile(userid):
 @app.route("/search")
 def search():
     name = request.args.get("name", "")
-
     students = list(students_collection.find({
         "name": {"$regex": name, "$options": "i"}
     }))
 
-    return render_template("results.html", students=students)
+    for s in students:
+        s["_id"] = str(s["_id"])
+
+    return jsonify(students)
 
 if __name__ == '__main__':
     app.run(debug=True)
