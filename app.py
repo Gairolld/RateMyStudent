@@ -41,6 +41,7 @@ def profile(userid):
         avg = 0
         if len(all_reviews) > 0:
             avg = sum(r["rating"] for r in all_reviews) / len(all_reviews)
+            avg = round(avg, 2)
         
         
         # update the student's average rating
