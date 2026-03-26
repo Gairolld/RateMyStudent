@@ -36,8 +36,11 @@ def profile(userid):
 
         # we need to recalculate the average rating when a review is added
         all_reviews = list(reviews_collection.find({"student_id": userid}))
-        avg = sum(r['rating'] for r in all_reviews) / len(all_reviews)
-
+        avg = 0
+        if len(all_reviews) > 0:
+            avg = sum(r["rating"] for r in all_reviews) / len(all_reviews)
+        
+        
         # update the student's average rating
         students_collection.update_one(
             {"_id": userid},
