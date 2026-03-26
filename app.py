@@ -58,5 +58,16 @@ def profile(userid):
     reviews = list(reviews_collection.find({"student_id": userid}))
     return render_template('student.html', student=student, reviews=reviews)
 
+    #Basic search endpoint
+    @app.route("/search")
+    def search():
+        name = request.args.get("name")
+
+        students = list(students_collection.find({
+            "name": {"$regex": name, "$options": "i"}
+        }))
+
+        return render_template("results.html", students=students)
+
 if __name__ == '__main__':
     app.run(debug=True)
