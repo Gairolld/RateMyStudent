@@ -1,34 +1,33 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ student.name if student else "Student" }} - Rate My Student</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "layout.html" %}
 
-    <div class="container">
-        <h1>{{ student.name if student else "Student" }}</h1>
-        <p>Average Rating: {{ student.avg_rating if student and student.avg_rating else "No ratings yet" }}</p>
+{% block title %}{{ student.name if student else "Student" }} - Rate My Student{% endblock %}
 
-        <h2>Reviews</h2>
-        {% if reviews %}
-            {% for review in reviews %}
-                <div class="review">
-                    <p class="rating">Rating: {{ review.rating }} / 5</p>
-                    <p>{{ review.comment }}</p>
-                </div>
-            {% endfor %}
-        {% else %}
-            <p>No reviews yet. Be the first to review!</p>
-        {% endif %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% endblock %}
 
-        <h2>Add a Review</h2>
-        <form method="POST">
-            <input type="number" name="rating" placeholder="1-5" min="1" max="5" required>
-            <textarea name="comment" rows="3" placeholder="Comment" required></textarea>
-            <button type="submit">Submit</button>
-        </form>
-    </div>
+{% block content %}
+<div class="container">
+    <h1>{{ student.name if student else "Student" }}</h1>
+    <p>Average Rating: {{ student.avg_rating if student and student.avg_rating else "No ratings yet" }}</p>
 
-</body>
-</html>
+    <h2>Reviews</h2>
+    {% if reviews %}
+        {% for review in reviews %}
+            <div class="review">
+                <p class="rating">Rating: {{ review.rating }} / 5</p>
+                <p>{{ review.comment }}</p>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No reviews yet. Be the first to review!</p>
+    {% endif %}
+
+    <h2>Add a Review</h2>
+    <form method="POST">
+        <input type="number" name="rating" placeholder="1-5" min="1" max="5" required>
+        <textarea name="comment" rows="3" placeholder="Comment" required></textarea>
+        <button type="submit">Submit</button>
+    </form>
+</div>
+{% endblock %}
