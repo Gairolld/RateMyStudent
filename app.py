@@ -19,8 +19,10 @@ reviews_collection = db["reviews"]
 # route for viewing student profile
 @app.route('/student/<int:userid>', methods=['GET', 'POST'], endpoint='student')
 def profile(userid):
-    # fetch student
+    # fetch student 
     student = students_collection.find_one({"_id": userid})
+    if "avg_rating" not in student:
+    student["avg_rating"] = 0
 
     # handles review submission
     if request.method == 'POST':
