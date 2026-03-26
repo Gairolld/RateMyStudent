@@ -2,10 +2,6 @@
 
 {% block title %}{{ student.name if student else "Student" }} - Rate My Student{% endblock %}
 
-{% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-{% endblock %}
-
 {% block content %}
 <div class="container">
     <h1>{{ student.name if student else "Student" }}</h1>
