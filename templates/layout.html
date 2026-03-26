@@ -1,0 +1,32 @@
+<!--universal layout page-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Rate My Student{% endblock %}</title>
+    {% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% endblock %}
+</head>
+<body>
+
+    <!--ratemystudent header-->
+    <header class="site-header">
+        <h1>Rate My Student</h1>
+    </header>
+
+    <!--search bar-->
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search students">
+        <ul id="searchResults"></ul>
+    </div>
+
+    <!--main page content-->
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block scripts %}
+    <script src="{{ url_for('static', filename='search.js') }}"></script>
+    {% endblock %}
+</body>
+</html>

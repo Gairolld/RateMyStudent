@@ -64,3 +64,45 @@ button:hover {
 p {
     line-height: 1.4;
 }
+
+.site-header {
+    background-color: #2c3e50;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+    border-radius: 8px 8px 0 0;
+}
+
+.search-bar {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto 20px;
+}
+
+#searchResults {
+    display: none;
+    border: 1px solid #ccc;
+    background: #fff;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    position: absolute;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+#searchResults li {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+#searchResults li a {
+    text-decoration: none;
+    color: #333;
+}
+
+#searchResults li:hover {
+    background-color: #f8f8f8;
+}
