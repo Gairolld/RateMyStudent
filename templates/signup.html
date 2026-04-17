@@ -1,0 +1,48 @@
+<!-- signup.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Signup</title>
+    <script>
+    async function signup(event) {
+      event.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+      const fullName = document.getElementById('full_name').value;
+      const school = document.getElementById('school').value;
+      const response = await fetch('/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role, fullName, school })
+      });
+      const data = await response.json();
+      alert(data.message || data.error);
+      if (data.success) window.location = '/login';
+    }
+
+    function toggleStudentFields() {
+      const role = document.getElementById('role').value;
+      document.getElementById('studentFields').style.display = (role === 'student') ? '' : 'none';
+    }
+    </script>
+</head>
+<body>
+    <h2>Signup</h2>
+    <form onsubmit="signup(event)">
+      <input id="username" name="username" placeholder="username" required>
+      <input id="password" name="password" type="password" placeholder="password" required>
+      <select id="role" name="role" required onchange="toggleStudentFields()">
+        <option value="">Select Role</option>
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+      </select>
+      <div id="studentFields" style="display:none;">
+        <input id="full_name" name="full_name" type="text" placeholder="Full Name">
+        <input id="school" name="school" type="text" placeholder="School">
+      </div>
+      <button type="submit">Signup</button>
+    </form>
+  </body>
+</html>

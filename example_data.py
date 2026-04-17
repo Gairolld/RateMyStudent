@@ -10,18 +10,18 @@ db = client["rate_my_student"]
 
 students_collection = db["students"]
 reviews_collection = db["reviews"]
+users_collection = db["users"]
 
 def reset_database():
-
     # delete everything
     students_collection.delete_many({})
     reviews_collection.delete_many({})
 
     # insert example students
     students = [
-        {"_id": 1, "name": "Alice Johnson", "avg_rating": 0},
-        {"_id": 2, "name": "Bob Smith", "avg_rating": 0},
-        {"_id": 3, "name": "Charlie Brown", "avg_rating": 0},
+        {"_id": 1, "name": "Alice Johnson", "school": "Example High", "avg_rating": 0},
+        {"_id": 2, "name": "Bob Smith", "school": "Example High", "avg_rating": 0},
+        {"_id": 3, "name": "Charlie Brown", "school": "Example High", "avg_rating": 0},
     ]
 
     students_collection.insert_many(students)
@@ -51,6 +51,28 @@ def reset_database():
             {"_id": student_id},
             {"$set": {"avg_rating": avg}}
         )
+
+    # recreate student profiles for users with the student role
+    import random
+    users = list(users_collection.find({"role": "student"}))
+    for user in users:
+        # generate a new student_id if not present
+        student_id = user.get("student_id")
+        if not student_id:
+            while True:
+                student_id = random.randint(10000000, 99999999)
+                if not students_collection.find_one({"_id": student_id}):
+                    break
+            users_collection.update_one({"_id": user["_id"]}, {"$set": {"student_id": student_id}})
+
+        # create student profile if not present
+        if not students_collection.find_one({"_id": student_id}):
+            students_collection.insert_one({
+                "_id": student_id,
+                "name": user.get("full_name", ""),
+                "school": user.get("school", ""),
+                "avg_rating": 0
+            })
 
     print("Database reset complete!")
 

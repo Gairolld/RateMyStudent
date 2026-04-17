@@ -1,29 +1,91 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ student.name if student else "Student" }} - Rate My Student{% endblock %}
+{% block title %}Student - Rate My Student{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1>{{ student.name if student else "Student" }}</h1>
-    <p>Average Rating: {{ student.avg_rating if student and student.avg_rating else "No ratings yet" }}</p>
+    <h1 id="studentName">Student</h1>
+    <p id="studentFullName"></p>
+    <p id="studentSchool"></p>
+    <p>Average Rating: <span id="avgRating">No ratings yet</span></p>
 
     <h2>Reviews</h2>
-    {% if reviews %}
-        {% for review in reviews %}
-            <div class="review">
-                <p class="rating">Rating: {{ review.rating }} / 5</p>
-                <p>{{ review.comment }}</p>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p>No reviews yet. Be the first to review!</p>
-    {% endif %}
+    <div id="reviews">
+        <p>Loading reviews...</p>
+    </div>
 
     <h2>Add a Review</h2>
-    <form method="POST">
-        <input type="number" name="rating" placeholder="1-5" min="1" max="5" required>
-        <textarea name="comment" rows="3" placeholder="Comment" required></textarea>
+    <form onsubmit="submitReview(event)">
+        <input id="rating" type="number" placeholder="1-5" min="1" max="5" required>
+        <textarea id="comment" rows="3" placeholder="Comment" required></textarea>
         <button type="submit">Submit</button>
     </form>
 </div>
+
+<script>
+let studentId = null;
+
+window.onload = function () {
+    const match = location.pathname.match(/student\/(\d+)/);
+    if (!match) return;
+
+    studentId = match[1];
+    loadStudent();
+};
+
+function loadStudent() {
+    fetch(`/api/student/${studentId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.student) return;
+
+            const student = data.student;
+            const reviews = data.reviews || [];
+
+            document.getElementById('studentName').innerText = student.name || 'Student';
+            document.getElementById('studentFullName').innerText = student.full_name ? `Full Name: ${student.full_name}` : '';
+            document.getElementById('studentSchool').innerText = student.school ? `School: ${student.school}` : '';
+            document.getElementById('avgRating').innerText = student.avg_rating || 'No ratings yet';
+
+            const reviewsDiv = document.getElementById('reviews');
+
+            if (reviews.length === 0) {
+                reviewsDiv.innerHTML = '<p>No reviews yet. Be the first to review!</p>';
+                return;
+            }
+
+            reviewsDiv.innerHTML = reviews.map(r => `
+                <div class="review">
+                    <p class="rating">Rating: ${r.rating} / 5</p>
+                    <p>${r.comment}</p>
+                </div>
+            `).join('');
+        });
+}
+
+function submitReview(e) {
+    e.preventDefault();
+
+    fetch(`/api/student/${studentId}/review`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            rating: document.getElementById('rating').value,
+            comment: document.getElementById('comment').value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.message || data.error);
+
+        if (data.success) {
+            document.getElementById('rating').value = '';
+            document.getElementById('comment').value = '';
+            loadStudent();
+        }
+    });
+}
+</script>
 {% endblock %}
