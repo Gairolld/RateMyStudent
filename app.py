@@ -39,6 +39,26 @@ create_admin_account()
 # API ROUTES
 # ------------------------------------------
 
+# harmful language
+BANNED_WORDS = [
+    "fuck", "shit", "bitch", "asshole",
+]
+
+def contains_harmful_language(text):
+    if not text:
+        return False
+    lowered = text.lower()
+    for word in BANNED_WORDS:
+        if word in lowered:
+            return True
+    return False
+
+# max length
+MAX_COMMENT_LEN = 200
+MAX_USERNAME_LEN = 50
+MAX_FULLNAME_LEN = 50
+MAX_SCHOOL_LEN = 50
+
 # signup API
 @app.route("/signup", methods=["POST"])
 def api_signup():
@@ -50,6 +70,15 @@ def api_signup():
     role = data.get("role", "")
     full_name = data.get("full_name", "").strip()
     school = data.get("school", "").strip()
+
+    if len(username) > MAX_USERNAME_LEN:
+        return jsonify({"success": False, "error": f"Username must be at most {MAX_USERNAME_LEN} characters."}), 400
+    if len(full_name) > MAX_FULLNAME_LEN:
+        return jsonify({"success": False, "error": f"Full name must be at most {MAX_FULLNAME_LEN} characters."}), 400
+    if len(school) > MAX_SCHOOL_LEN:
+        return jsonify({"success": False, "error": f"School name must be at most {MAX_SCHOOL_LEN} characters."}), 400
+    if contains_harmful_language(username) or contains_harmful_language(full_name) or contains_harmful_language(school):
+        return jsonify({"success": False, "error": "Inappropriate language detected in user info."}), 400
 
     # check if role is provided
     if role not in ("student", "teacher"):
@@ -188,6 +217,11 @@ def api_post_review(userid):
     data = request.get_json(force=True)
     rating = int(data.get('rating', 0))
     comment = data.get('comment', "")
+
+    if len(comment) > MAX_COMMENT_LEN:
+        return jsonify({"success": False, "error": f"Comment must be at most {MAX_COMMENT_LEN} characters."}), 400
+    if contains_harmful_language(comment):
+        return jsonify({"success": False, "error": "Inappropriate language detected in comment."}), 400
 
     result = reviews_collection.insert_one({
         "student_id": userid,
