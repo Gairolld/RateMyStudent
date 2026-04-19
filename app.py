@@ -215,24 +215,5 @@ def api_search():
         s["_id"] = str(s["_id"])
     return jsonify(students)
 
-# ------------------------------------------
-# PAGE ROUTES
-# ------------------------------------------
-
-# signup page
-@app.route("/signup", methods=["GET"])
-def signup_page():
-    return render_template("signup.html")
-
-# login page
-@app.route("/login", methods=["GET"])
-def login_page():
-    return render_template("login.html")
-
-# student page
-@app.route("/student/<int:userid>", methods=["GET"])
-def student_page(userid):
-    return render_template("student.html")
-
 if __name__ == '__main__':
     app.run(debug=True)
