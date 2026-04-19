@@ -12,6 +12,10 @@ function StudentProfile({ LightMode }) {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [auth, setAuth] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [editReviewId, setEditReviewId] = useState(null);
+  const [editRating, setEditRating] = useState(0);
+  const [editComment, setEditComment] = useState("");
 
   useEffect(() => {
     fetch(`/api/student/${userid}`, { credentials: "include" })
@@ -33,6 +37,14 @@ function StudentProfile({ LightMode }) {
       .catch(() => setError("Failed to load student"));
   }, [userid]);
 
+  useEffect(() => {
+    fetch("/api/me", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.user_id) setCurrentUserId(data.user_id);
+      });
+  }, []);
+
   const handleReview = async (e) => {
     e.preventDefault();
     setError("");
@@ -48,7 +60,7 @@ function StudentProfile({ LightMode }) {
       const data = await res.json();
       if (data.success) {
         setSuccess("Review posted!");
-        setReviews((prev) => [...prev, { rating, comment }]);
+        setReviews((prev) => [...prev, { _id: data.review_id, rating, comment, user_id: currentUserId }]);
         setRating(0);
         setComment("");
       } else {
@@ -58,6 +70,63 @@ function StudentProfile({ LightMode }) {
       setError("Failed to post review");
     }
     setLoading(false);
+  };
+
+  const handleDelete = async (reviewId) => {
+    if (!window.confirm("Are you sure you want to delete this review?")) return;
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/review/${reviewId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Review deleted.");
+        setReviews((prev) => prev.filter((r) => r._id !== reviewId));
+      } else {
+        setError(data.error || "Failed to delete review");
+      }
+    } catch {
+      setError("Failed to delete review");
+    }
+  };
+
+  const startEdit = (review) => {
+    setEditReviewId(review._id);
+    setEditRating(review.rating);
+    setEditComment(review.comment);
+  };
+
+  const cancelEdit = () => {
+    setEditReviewId(null);
+    setEditRating(0);
+    setEditComment("");
+  };
+
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/review/${editReviewId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ rating: editRating, comment: editComment }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Review updated.");
+        setReviews((prev) => prev.map((r) => r._id === editReviewId ? { ...r, rating: editRating, comment: editComment } : r));
+        cancelEdit();
+      } else {
+        setError(data.error || "Failed to update review");
+      }
+    } catch {
+      setError("Failed to update review");
+    }
   };
 
   if (error) return <div style={{ color: "red", padding: 24 }}>{error}</div>;
@@ -80,15 +149,34 @@ function StudentProfile({ LightMode }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 32 }}>
         {reviews.length === 0 && <div style={{ color: "#888" }}>No reviews yet.</div>}
         {reviews.map((r, i) => (
-          <div key={i} style={{
+          <div key={r._id || i} style={{
             background: LightMode ? "#fff" : "#18192b",
             borderRadius: 10,
             boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
             padding: 18,
             borderLeft: `6px solid ${r.rating >= 4 ? '#22c55e' : r.rating >= 2 ? '#facc15' : '#ef4444'}`
           }}>
-            <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 4 }}>Rating: {r.rating} / 5</div>
-            <div style={{ color: "#444", fontSize: 15 }}>{r.comment}</div>
+            {editReviewId === r._id ? (
+              <form onSubmit={handleEdit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <input type="number" min="1" max="5" value={editRating} onChange={e => setEditRating(Number(e.target.value))} required style={{ padding: 8, borderRadius: 6, border: "1px solid #ccc", fontSize: 15 }} />
+                <input value={editComment} onChange={e => setEditComment(e.target.value)} required style={{ padding: 8, borderRadius: 6, border: "1px solid #ccc", fontSize: 15 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="submit" style={{ padding: "6px 16px", borderRadius: 6, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer" }}>Save</button>
+                  <button type="button" onClick={cancelEdit} style={{ padding: "6px 16px", borderRadius: 6, background: "#888", color: "#fff", border: "none", cursor: "pointer" }}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 4 }}>Rating: {r.rating} / 5</div>
+                <div style={{ color: "#444", fontSize: 15 }}>{r.comment}</div>
+                {currentUserId && r.user_id === currentUserId && (
+                  <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                    <button onClick={() => startEdit(r)} style={{ padding: "6px 16px", borderRadius: 6, background: "#facc15", color: "#000", border: "none", cursor: "pointer" }}>Edit</button>
+                    <button onClick={() => handleDelete(r._id)} style={{ padding: "6px 16px", borderRadius: 6, background: "#ef4444", color: "#fff", border: "none", cursor: "pointer" }}>Delete</button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         ))}
       </div>

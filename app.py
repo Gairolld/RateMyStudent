@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
+from bson import ObjectId
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -163,6 +164,8 @@ def api_student_profile(userid):
     reviews = list(reviews_collection.find({"student_id": userid}))
     for r in reviews:
         r["_id"] = str(r["_id"])
+        if "user_id" in r:
+            r["user_id"] = str(r["user_id"])
     student["_id"] = str(student["_id"])
     return jsonify({"student": student, "reviews": reviews})
 
@@ -186,10 +189,11 @@ def api_post_review(userid):
     rating = int(data.get('rating', 0))
     comment = data.get('comment', "")
 
-    reviews_collection.insert_one({
+    result = reviews_collection.insert_one({
         "student_id": userid,
         "rating": rating,
-        "comment": comment
+        "comment": comment,
+        "user_id": session_obj["user_id"]
     })
 
     all_reviews = list(reviews_collection.find({"student_id": userid}))
@@ -202,7 +206,75 @@ def api_post_review(userid):
         {"$set": {"avg_rating": avg}},
         upsert=True
     )
-    return jsonify({"success": True, "message": "Review added.", "avg_rating": avg})
+    return jsonify({"success": True, "message": "Review added.", "avg_rating": avg, "review_id": str(result.inserted_id)})
+
+
+# edit review API
+@app.route('/api/review/<review_id>', methods=['PUT'])
+def api_edit_review(review_id):
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+
+    review = reviews_collection.find_one({"_id": ObjectId(review_id)})
+    if not review:
+        return jsonify({"success": False, "error": "Review not found."}), 404
+
+    if review.get("user_id") != session_obj["user_id"]:
+        return jsonify({"success": False, "error": "Not authorized."}), 403
+
+    data = request.get_json(force=True)
+    rating = int(data.get('rating', review["rating"]))
+    comment = data.get('comment', review["comment"])
+
+    reviews_collection.update_one({"_id": ObjectId(review_id)}, {"$set": {"rating": rating, "comment": comment}})
+
+    # update avg_rating for the student
+    student_id = review["student_id"]
+    all_reviews = list(reviews_collection.find({"student_id": student_id}))
+    avg = 0
+    if len(all_reviews) > 0:
+        avg = sum(r["rating"] for r in all_reviews) / len(all_reviews)
+        avg = round(avg, 2)
+    students_collection.update_one(
+        {"_id": student_id},
+        {"$set": {"avg_rating": avg}},
+        upsert=True
+    )
+    return jsonify({"success": True, "message": "Review updated.", "avg_rating": avg})
+
+
+# delete review API
+@app.route('/api/review/<review_id>', methods=['DELETE'])
+def api_delete_review(review_id):
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+
+    review = reviews_collection.find_one({"_id": ObjectId(review_id)})
+    if not review:
+        return jsonify({"success": False, "error": "Review not found."}), 404
+
+    if review.get("user_id") != session_obj["user_id"]:
+        return jsonify({"success": False, "error": "Not authorized."}), 403
+
+    reviews_collection.delete_one({"_id": ObjectId(review_id)})
+
+    # update avg_rating for the student
+    student_id = review["student_id"]
+    all_reviews = list(reviews_collection.find({"student_id": student_id}))
+    avg = 0
+    if len(all_reviews) > 0:
+        avg = sum(r["rating"] for r in all_reviews) / len(all_reviews)
+        avg = round(avg, 2)
+    students_collection.update_one(
+        {"_id": student_id},
+        {"$set": {"avg_rating": avg}},
+        upsert=True
+    )
+    return jsonify({"success": True, "message": "Review deleted.", "avg_rating": avg})
 
 # search students API
 @app.route("/search", methods=["GET"])
@@ -214,6 +286,15 @@ def api_search():
     for s in students:
         s["_id"] = str(s["_id"])
     return jsonify(students)
+
+# get current user API
+@app.route("/api/me", methods=["GET"])
+def api_me():
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+    return jsonify({"success": True, "user_id": str(session_obj["user_id"])})
 
 if __name__ == '__main__':
     app.run(debug=True)
