@@ -122,7 +122,7 @@ MAX_FULLNAME_LEN = 50
 MAX_SCHOOL_LEN = 50
 
 # signup API
-@app.route("/signup", methods=["POST"])
+@app.route("/api/signup", methods=["POST"])
 def api_signup():
     import secrets
     import random
@@ -196,7 +196,7 @@ def api_signup():
 
 
 # login API
-@app.route("/login", methods=["POST"])
+@app.route("/api/login", methods=["POST"])
 def api_login():
     import secrets
     data = request.get_json(force=True)
@@ -224,7 +224,7 @@ def api_login():
 
 
 # logout API
-@app.route("/logout", methods=["POST"])
+@app.route("/api/logout", methods=["POST"])
 def api_logout():
     session_key = request.cookies.get("session_key")
     if session_key:
@@ -394,7 +394,7 @@ def api_delete_review(review_id):
     return jsonify({"success": True, "message": "Review deleted.", "avg_rating": avg})
 
 # search students API
-@app.route("/search", methods=["GET"])
+@app.route("/api/search", methods=["GET"])
 def api_search():
     query = request.args.get("name", "").strip()
     if not query:

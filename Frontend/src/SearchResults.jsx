@@ -2,16 +2,17 @@ import { useNavigate } from "react-router-dom";
 
 function SearchResults({ results, LightMode }) {
   const navigate = useNavigate();
-  const textColor = LightMode ? "#111" : "#f3f4f6";
-  const mutedColor = LightMode ? "#444" : "#d1d5db";
+  const textColor = LightMode ? "#18181b" : "#f9fafb";
+  const mutedColor = LightMode ? "#374151" : "#d1d5db";
   const buttonStyle = {
     marginLeft: 10,
     padding: "6px 12px",
     borderRadius: 6,
     border: "none",
     background: LightMode ? "#2563eb" : "#3b82f6",
-    color: "#fff",
+    color: "#f9fafb",
     cursor: "pointer",
+    fontWeight: 600,
   };
 
   if (!results.length) return <div style={{ color: mutedColor }}>No students found.</div>;
