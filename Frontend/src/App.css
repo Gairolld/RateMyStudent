@@ -9,18 +9,29 @@ input, select, textarea, button {
   font-family: inherit;
   font-size: 1rem;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 12px 16px;
+  background: var(--bg);
+  color: var(--text);
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px #2563eb33;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
 button {
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+button:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
 button:active {
@@ -29,20 +40,20 @@ button:active {
 
 ::-webkit-scrollbar {
   width: 8px;
-  background: #f1f1f1;
+  background: var(--bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--border);
   border-radius: 8px;
 }
 
 .theme-dark ::-webkit-scrollbar {
-  background: #23243a;
+  background: var(--bg);
 }
 
 .theme-dark ::-webkit-scrollbar-thumb {
-  background: #444;
+  background: var(--border);
 }
 
 h1, h2, h3, h4, h5, h6 {

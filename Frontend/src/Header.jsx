@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, myStudentId, myUserId, myRole, searchResults, searching }) {
+function Header({ onSearch, query, setQuery, LightMode, setLightMode, auth, handleLogout, myStudentId, myUserId, myRole, searchResults, searching }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -34,11 +34,11 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
 
   return (
     <header style={{
-      background: LightMode ? "#2563eb" : "#1a1a2e",
+      background: LightMode ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" : "linear-gradient(135deg, #2d3748 0%, #1a202c 100%)",
       color: "#fff",
       padding: "20px 0 10px 0",
       marginBottom: 30,
-      boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
       position: "sticky",
       top: 0,
       zIndex: 1000
@@ -52,7 +52,26 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
         padding: "0 20px"
       }}>
         <h1 style={{ cursor: "pointer", fontWeight: 700, fontSize: 32, letterSpacing: 1 }} onClick={() => navigate("/")}>RateMyStudent</h1>
-        <div>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <button
+            onClick={() => setLightMode(!LightMode)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "8px 16px",
+              fontSize: "14px",
+              backgroundColor: LightMode ? "#1a1a2e" : "#fff",
+              color: LightMode ? "#fff" : "#1a1a2e",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              transition: "0.2s",
+              marginRight: "12px"
+            }}
+          >
+            {LightMode ? "🌙 Dark" : "☀️ Light"}
+          </button>
           {auth && auth.loggedIn ? (
             <>
               {myStudentId && (
@@ -84,14 +103,15 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
             onFocus={() => setShowDropdown(true)}
             onBlur={handleBlur}
             style={{
-              padding: "10px",
+              padding: "12px",
               fontSize: "16px",
               width: "320px",
-              borderRadius: 6,
-              border: "1px solid #ccc",
+              borderRadius: 8,
+              border: "1px solid rgba(255, 255, 255, 0.3)",
               marginRight: 8,
-              color: LightMode ? "#000" : "#fff",
-              background: LightMode ? "#fff" : "#222"
+              color: "#fff",
+              background: "rgba(255, 255, 255, 0.1)",
+              backdropFilter: "blur(10px)"
             }}
             autoComplete="off"
           />
@@ -104,14 +124,15 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
                 top: 48,
                 transform: "translateX(-50%)",
                 width: inputWidth || 320,
-                background: LightMode ? "#fff" : "#23243a",
-                color: LightMode ? "#111" : "#f3f4f6",
-                border: "1px solid #ccc",
-                borderRadius: 8,
-                boxShadow: "0 4px 16px rgba(0,0,0,0.13)",
+                background: "rgba(255, 255, 255, 0.95)",
+                color: "#111",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                borderRadius: 12,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
                 zIndex: 2000,
                 maxHeight: 320,
-                overflowY: "auto"
+                overflowY: "auto",
+                backdropFilter: "blur(20px)"
               }}
             >
               {searching ? (
@@ -122,19 +143,22 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
                     key={student._id}
                     onMouseDown={() => handleResultClick(student._id)}
                     style={{
-                      padding: "10px 18px",
+                      padding: "12px 18px",
                       cursor: "pointer",
-                      borderBottom: LightMode ? "1px solid #f1f1f1" : "1px solid #23243a",
+                      borderBottom: "1px solid rgba(0, 0, 0, 0.1)",
                       fontWeight: 500,
                       fontSize: 16,
-                      background: "none"
+                      background: "none",
+                      transition: "background 0.2s"
                     }}
+                    onMouseEnter={(e) => e.target.style.background = "rgba(0, 0, 0, 0.05)"}
+                    onMouseLeave={(e) => e.target.style.background = "none"}
                   >
                     {student.name} <span style={{ color: LightMode ? "#666" : "#d1d5db", fontWeight: 400, fontSize: 14 }}>({student.school})</span>
                   </div>
                 ))
               ) : (
-                <div style={{ padding: 16, color: LightMode ? "#888" : "#d1d5db", textAlign: "center" }}>No students found.</div>
+                <div style={{ padding: 16, color: "#666", textAlign: "center" }}>No students found.</div>
               )}
             </div>
           )}
@@ -145,15 +169,21 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
 }
 
 const buttonStyle = {
-  padding: "8px 18px",
+  padding: "10px 20px",
   fontSize: "16px",
-  background: "#2563eb",
+  background: "rgba(255, 255, 255, 0.2)",
   color: "#fff",
-  border: "none",
+  border: "1px solid rgba(255, 255, 255, 0.3)",
   borderRadius: "8px",
   cursor: "pointer",
   fontWeight: 500,
-  marginLeft: 8
+  marginLeft: 8,
+  transition: "all 0.2s",
+};
+
+buttonStyle[':hover'] = {
+  background: "rgba(255, 255, 255, 0.3)",
+  borderColor: "rgba(255, 255, 255, 0.5)",
 };
 
 export default Header;

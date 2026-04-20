@@ -63,6 +63,7 @@ function App() {
         query={query}
         setQuery={setQuery}
         LightMode={LightMode}
+        setLightMode={setLightMode}
         auth={auth}
         handleLogout={handleLogout}
         myStudentId={auth.studentId}
@@ -75,30 +76,33 @@ function App() {
         <Route
           path="/"
           element={
-            <div style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
+            <div style={{ maxWidth: 1000, margin: "0 auto", padding: 40 }}>
               {/* Images and info */}
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "0px", marginTop: "60px" }}>
-                <img src={myImage} alt="My image" style={{ padding: "20px 0px", width: "275px", height: "183px", objectFit: "cover", borderRadius: 12 }} />
-                <img src={myImage2} alt="My image" style={{ padding: "20px 0px", width: "275px", height: "183px", objectFit: "cover", borderRadius: 12 }} />
-                <img src={myImage3} alt="My image" style={{ padding: "20px 0px", width: "275px", height: "183px", objectFit: "cover", borderRadius: 12 }} />
+              <div style={{ textAlign: "center", marginBottom: 60 }}>
+                <h1 style={{ fontSize: "3rem", marginBottom: 20, color: LightMode ? "#111" : "#fff" }}>Welcome to RateMyStudent</h1>
+                <p style={{ fontSize: "1.2rem", color: LightMode ? "#666" : "#ccc", marginBottom: 40 }}>Connect, rate, and improve student experiences</p>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "0px", marginTop: "20px" }}>
-                <p style={{ width: "275px", color: LightMode ? "#000" : "#fff" }}>Do you want to give your student a rating?</p>
-                <p style={{ width: "275px", color: LightMode ? "#000" : "#fff" }}>Wish you could do something about a student's bad behavior?</p>
-                <p style={{ width: "275px", color: LightMode ? "#000" : "#fff" }}>Want to see what your rating is?</p>
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "120px" }}>
-                <button
-                  onClick={() => setLightMode(!LightMode)}
-                  style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 20px", fontSize: "16px", backgroundColor: LightMode ? "#000" : "#fff", color: LightMode ? "#fff" : "#000", border: "none", borderRadius: "8px", cursor: "pointer", transition: "0.2s" }}>
-                  {!LightMode && "Light Mode"}
-                  {LightMode && "Dark Mode"}
-                </button>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "20px", marginBottom: 60 }}>
+                <div style={{ flex: 1, textAlign: "center", padding: 20, background: LightMode ? "rgba(59, 130, 246, 0.1)" : "rgba(96, 165, 250, 0.1)", borderRadius: 12 }}>
+                  <img src={myImage} alt="Rate students" style={{ width: "200px", height: "133px", objectFit: "cover", borderRadius: 8, marginBottom: 20 }} />
+                  <h3 style={{ color: LightMode ? "#000" : "#fff", marginBottom: 10 }}>Rate Students</h3>
+                  <p style={{ color: LightMode ? "#555" : "#ccc" }}>Share your honest feedback to help students improve</p>
+                </div>
+                <div style={{ flex: 1, textAlign: "center", padding: 20, background: LightMode ? "rgba(59, 130, 246, 0.1)" : "rgba(96, 165, 250, 0.1)", borderRadius: 12 }}>
+                  <img src={myImage2} alt="Address behavior" style={{ width: "200px", height: "133px", objectFit: "cover", borderRadius: 8, marginBottom: 20 }} />
+                  <h3 style={{ color: LightMode ? "#000" : "#fff", marginBottom: 10 }}>Address Behavior</h3>
+                  <p style={{ color: LightMode ? "#555" : "#ccc" }}>Report and discuss student conduct issues</p>
+                </div>
+                <div style={{ flex: 1, textAlign: "center", padding: 20, background: LightMode ? "rgba(59, 130, 246, 0.1)" : "rgba(96, 165, 250, 0.1)", borderRadius: 12 }}>
+                  <img src={myImage3} alt="View ratings" style={{ width: "200px", height: "133px", objectFit: "cover", borderRadius: 8, marginBottom: 20 }} />
+                  <h3 style={{ color: LightMode ? "#000" : "#fff", marginBottom: 10 }}>View Ratings</h3>
+                  <p style={{ color: LightMode ? "#555" : "#ccc" }}>Check your ratings and see what others think</p>
+                </div>
               </div>
             </div>
           }
         />
-        <Route path="/login" element={<Login setAuth={setAuth} LightMode={LightMode} />} />
+        <Route path="/login" element={<Login setAuth={setAuth} LightMode={LightMode} setLightMode={setLightMode} />} />
         <Route path="/student/:userid" element={<StudentProfile LightMode={LightMode} />} />
         <Route path="/teacher/:teacherid" element={<TeacherProfile LightMode={LightMode} />} />
         <Route path="/admin" element={<AdminProfile LightMode={LightMode} />} />

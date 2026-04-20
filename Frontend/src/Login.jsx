@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-function Login({ setAuth, LightMode }) {
+function Login({ setAuth, LightMode, setLightMode }) {
   const [isSignup, setIsSignup] = useState(false);
   // Login state
   const [username, setUsername] = useState("");
@@ -87,7 +87,39 @@ function Login({ setAuth, LightMode }) {
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 400, margin: "0 auto", color: textColor, position: "relative" }}>
+    <div style={{
+      padding: 40,
+      maxWidth: 450,
+      margin: "50px auto",
+      color: textColor,
+      background: LightMode ? "rgba(255, 255, 255, 0.9)" : "rgba(31, 41, 55, 0.9)",
+      borderRadius: 16,
+      boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+      backdropFilter: "blur(20px)",
+      position: "relative",
+      border: LightMode ? "1px solid rgba(0,0,0,0.1)" : "1px solid rgba(255,255,255,0.1)"
+    }}>
+      <div style={{ position: "absolute", top: 20, right: 20 }}>
+        <button
+          onClick={() => setLightMode(!LightMode)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "10px 16px",
+            fontSize: "14px",
+            backgroundColor: LightMode ? "#1a1a2e" : "#fff",
+            color: LightMode ? "#fff" : "#1a1a2e",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            transition: "0.2s",
+            fontWeight: 500
+          }}
+        >
+          {LightMode ? "🌙 Dark" : "☀️ Light"}
+        </button>
+      </div>
       {!isSignup ? (
         <>
           <h2 style={{ color: textColor }}>Login</h2>
