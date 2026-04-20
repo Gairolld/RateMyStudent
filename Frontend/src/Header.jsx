@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout }) {
+function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, myStudentId, myUserId, myRole }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,7 +30,18 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout }) {
         <h1 style={{ cursor: "pointer", fontWeight: 700, fontSize: 32, letterSpacing: 1 }} onClick={() => navigate("/")}>RateMyStudent</h1>
         <div>
           {auth && auth.loggedIn ? (
-            <button onClick={handleLogout} style={{ ...buttonStyle, background: "#ef4444" }}>Logout</button>
+            <>
+              {myStudentId && (
+                <button onClick={() => navigate(`/student/${myStudentId}`)} style={buttonStyle}>Profile</button>
+              )}
+              {myRole === "teacher" && myUserId && (
+                <button onClick={() => navigate(`/teacher/${myUserId}`)} style={buttonStyle}>Profile</button>
+              )}
+              {myRole === "admin" && (
+                <button onClick={() => navigate(`/admin`)} style={buttonStyle}>Profile</button>
+              )}
+              <button onClick={handleLogout} style={{ ...buttonStyle, background: "#ef4444" }}>Logout</button>
+            </>
           ) : (
             location.pathname !== "/login" && (
               <button onClick={() => navigate("/login") } style={buttonStyle}>Login</button>

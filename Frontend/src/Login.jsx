@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-function Login({ setAuth }) {
+function Login({ setAuth, LightMode }) {
   const [isSignup, setIsSignup] = useState(false);
   // Login state
   const [username, setUsername] = useState("");
@@ -14,6 +14,8 @@ function Login({ setAuth }) {
   const [signupSuccess, setSignupSuccess] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
   const navigate = useNavigate();
+  const textColor = LightMode ? "#111" : "#f3f4f6";
+  const helperTextColor = LightMode ? "#333" : "#d1d5db";
 
   // Login handler
   const handleLogin = async (e) => {
@@ -29,8 +31,15 @@ function Login({ setAuth }) {
       });
       const data = await res.json();
       if (data.success) {
-        setAuth({ loggedIn: true });
-        navigate("/");
+        const meRes = await fetch("/api/me", { credentials: "include" });
+        const meData = await meRes.json();
+        setAuth({
+          loggedIn: true,
+          studentId: meData?.student_id || null,
+          userId: meData?.user_id || null,
+          role: meData?.role || null,
+        });
+        navigate(meData?.role === "admin" ? "/admin" : "/");
       } else {
         setLoginError(data.error || "Login failed");
       }
@@ -58,10 +67,15 @@ function Login({ setAuth }) {
       });
       const data = await res.json();
       if (data.success) {
-        setSignupSuccess("Signup successful! You can now log in.");
+        setAuth({
+          loggedIn: true,
+          studentId: data.student_id || null,
+          userId: data.user_id || null,
+          role: data.role || null,
+        });
+        setSignupSuccess("Signup successful! Redirecting to home...");
         setTimeout(() => {
-          setIsSignup(false);
-          setSignupSuccess("");
+          navigate("/");
         }, 1500);
       } else {
         setSignupError(data.error || "Signup failed");
@@ -73,10 +87,10 @@ function Login({ setAuth }) {
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 400, margin: "0 auto" }}>
+    <div style={{ padding: 20, maxWidth: 400, margin: "0 auto", color: textColor, position: "relative" }}>
       {!isSignup ? (
         <>
-          <h2>Login</h2>
+          <h2 style={{ color: textColor }}>Login</h2>
           <form onSubmit={handleLogin}>
             <input
               name="username"
@@ -98,13 +112,13 @@ function Login({ setAuth }) {
             <button type="submit" disabled={loginLoading}>{loginLoading ? "Logging in..." : "Login"}</button>
           </form>
           {loginError && <div style={{ color: "red", marginTop: 8 }}>{loginError}</div>}
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 16, color: helperTextColor }}>
             Don't have an account? <span style={{ color: "#2563eb", cursor: "pointer" }} onClick={() => setIsSignup(true)}>Sign up here</span>.
           </div>
         </>
       ) : (
         <>
-          <h2>Sign Up</h2>
+          <h2 style={{ color: textColor }}>Sign Up</h2>
           <form onSubmit={handleSignup}>
             <input name="username" placeholder="Username" value={signupForm.username} onChange={handleSignupChange} required disabled={signupLoading} />
             <input name="password" type="password" placeholder="Password" value={signupForm.password} onChange={handleSignupChange} required disabled={signupLoading} />
@@ -118,7 +132,7 @@ function Login({ setAuth }) {
           </form>
           {signupError && <div style={{ color: "red", marginTop: 8 }}>{signupError}</div>}
           {signupSuccess && <div style={{ color: "green", marginTop: 8 }}>{signupSuccess}</div>}
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 16, color: helperTextColor }}>
             Already have an account? <span style={{ color: "#2563eb", cursor: "pointer" }} onClick={() => setIsSignup(false)}>Log in here</span>.
           </div>
         </>

@@ -13,9 +13,20 @@ function StudentProfile({ LightMode }) {
   const [loading, setLoading] = useState(false);
   const [auth, setAuth] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [editReviewId, setEditReviewId] = useState(null);
   const [editRating, setEditRating] = useState(0);
   const [editComment, setEditComment] = useState("");
+  const [friendCodeInput, setFriendCodeInput] = useState("");
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [profileFriendStatus, setProfileFriendStatus] = useState(null);
+  const baseText = LightMode ? "#111" : "#f3f4f6";
+  const mutedText = LightMode ? "#666" : "#f3f4f6";
+  const softText = LightMode ? "#444" : "#e5e7eb";
+  const hintText = LightMode ? "#888" : "#d1d5db";
+  const starOutline = LightMode ? "#111" : "#fff";
 
   useEffect(() => {
     fetch(`/api/student/${userid}`, { credentials: "include" })
@@ -41,14 +52,86 @@ function StudentProfile({ LightMode }) {
     fetch("/api/me", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
-        if (data && data.user_id) setCurrentUserId(data.user_id);
+        if (data && data.user_id) {
+          setCurrentUserId(data.user_id);
+          setCurrentUser(data);
+        }
       });
   }, []);
+
+  const isOwnProfile = Boolean(currentUser && String(currentUser.student_id) === String(userid));
+  const canPostReview = Boolean(
+    auth &&
+    currentUser &&
+    currentUser.role === "teacher" &&
+    (currentUser.school || "").trim().toLowerCase() === (student?.school || "").trim().toLowerCase()
+  );
+
+  const loadFriendsData = async () => {
+    if (!currentUserId) return;
+    setFriendsLoading(true);
+    try {
+      const incomingRes = await fetch("/api/friend_request/incoming", { credentials: "include" });
+      const incomingData = incomingRes.ok ? await incomingRes.json() : [];
+      setIncomingRequests(Array.isArray(incomingData) ? incomingData : []);
+
+      if (isOwnProfile) {
+        const friendsRes = await fetch("/api/friends", { credentials: "include" });
+        const friendsData = friendsRes.ok ? await friendsRes.json() : [];
+        setFriends(Array.isArray(friendsData) ? friendsData : []);
+      } else {
+        setFriends([]);
+      }
+    } catch {
+      setError("Failed to load friends data");
+    }
+    setFriendsLoading(false);
+  };
+
+  useEffect(() => {
+    loadFriendsData();
+  }, [isOwnProfile, currentUserId]);
+
+  useEffect(() => {
+    if (!currentUserId || isOwnProfile) {
+      setProfileFriendStatus(null);
+      return;
+    }
+
+    fetch(`/api/friend_status/student/${userid}`, { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success) {
+          setProfileFriendStatus(data.status);
+        } else {
+          setProfileFriendStatus(null);
+        }
+      })
+      .catch(() => setProfileFriendStatus(null));
+  }, [currentUserId, isOwnProfile, userid]);
+
+  const requestFromViewedProfile = incomingRequests.find(
+    (req) => String(req.sender_student_id) === String(userid)
+  );
+
+  const goToUserProfile = (role, studentId, userId) => {
+    if (role === "teacher" && userId) {
+      navigate(`/teacher/${userId}`);
+      return;
+    }
+    if (studentId) {
+      navigate(`/student/${studentId}`);
+    }
+  };
 
   const handleReview = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    if (rating < 1 || rating > 5) {
+      setError("Please select a star rating from 1 to 5.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`/api/student/${userid}/review`, {
@@ -129,11 +212,166 @@ function StudentProfile({ LightMode }) {
     }
   };
 
+  const handleSendFriendRequest = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    const code = friendCodeInput.trim().toUpperCase();
+    if (!code) return;
+    try {
+      const res = await fetch(`/api/friend_request/${encodeURIComponent(code)}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Friend request sent.");
+        setFriendCodeInput("");
+      } else {
+        setError(data.error || "Failed to send friend request");
+      }
+    } catch {
+      setError("Failed to send friend request");
+    }
+  };
+
+  const handleAcceptRequest = async (requestId) => {
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/friend_request/${requestId}/accept`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Friend request accepted.");
+        loadFriendsData();
+      } else {
+        setError(data.error || "Failed to accept request");
+      }
+    } catch {
+      setError("Failed to accept request");
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/friend_request/${requestId}/reject`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Friend request rejected.");
+        loadFriendsData();
+      } else {
+        setError(data.error || "Failed to reject request");
+      }
+    } catch {
+      setError("Failed to reject request");
+    }
+  };
+
+  const handleDeleteFriend = async (friendId) => {
+    if (!window.confirm("Remove as friend?")) return;
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/friend/${friendId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Friend removed.");
+        loadFriendsData();
+      } else {
+        setError(data.error || "Failed to remove friend");
+      }
+    } catch {
+      setError("Failed to remove friend");
+    }
+  };
+
+  const handleDeleteFriendFromProfile = async () => {
+    if (!window.confirm("Remove as friend?")) return;
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/friend/student/${userid}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Friend removed.");
+        setProfileFriendStatus("none");
+        loadFriendsData();
+      } else {
+        setError(data.error || "Failed to remove friend");
+      }
+    } catch {
+      setError("Failed to remove friend");
+    }
+  };
+
+  const handleAddFriendFromProfile = async () => {
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/friend_request/student/${userid}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Friend request sent.");
+        setProfileFriendStatus("outgoing_pending");
+        loadFriendsData();
+      } else {
+        setError(data.error || "Failed to send friend request");
+      }
+    } catch {
+      setError("Failed to send friend request");
+    }
+  };
+
+  const renderStars = (selected, onSelect, size = 30) => (
+    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+      {[1, 2, 3, 4, 5].map((value) => {
+        const filled = value <= selected;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onSelect(value)}
+            aria-label={`Set rating to ${value}`}
+            style={{
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              padding: 0,
+              lineHeight: 1,
+              fontSize: size,
+              color: filled ? "#facc15" : "transparent",
+              WebkitTextStroke: `1.2px ${starOutline}`,
+            }}
+          >
+            ★
+          </button>
+        );
+      })}
+    </div>
+  );
+
   if (error) return <div style={{ color: "red", padding: 24 }}>{error}</div>;
   if (!student) return <div style={{ padding: 24 }}>Loading...</div>;
 
   return (
-    <div style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
+    <div style={{ maxWidth: 700, margin: "0 auto", padding: 24, color: baseText }}>
       <div style={{
         background: LightMode ? "#f5f7fa" : "#23243a",
         borderRadius: 14,
@@ -142,12 +380,163 @@ function StudentProfile({ LightMode }) {
         marginBottom: 32
       }}>
         <h2 style={{ marginBottom: 8 }}>{student.name}</h2>
-        <p style={{ margin: 0, color: "#666" }}>School: {student.school}</p>
-        <p style={{ margin: "8px 0 0 0", color: "#666" }}>Average Rating: <b>{student.avg_rating}</b></p>
+        <p style={{ margin: 0, color: mutedText }}>School: {student.school}</p>
+        <p style={{ margin: "8px 0 0 0", color: mutedText }}>Average Rating: <b>{student.avg_rating}</b></p>
+        {isOwnProfile && currentUser?.friend_code && (
+          <p style={{ margin: "10px 0 0 0", color: softText }}>
+            Your Friend Code: <b>{currentUser.friend_code}</b>
+          </p>
+        )}
       </div>
-      <h3 style={{ marginBottom: 12 }}>Reviews</h3>
+
+      {!isOwnProfile && requestFromViewedProfile && (
+        <div style={{
+          background: LightMode ? "#eef4ff" : "#1e293b",
+          borderRadius: 14,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          padding: 18,
+          marginBottom: 24
+        }}>
+          <div style={{ marginBottom: 10 }}>
+            Incoming friend request from this user.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => handleAcceptRequest(requestFromViewedProfile._id)} style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#22c55e", color: "#fff", cursor: "pointer" }}>Accept</button>
+            <button onClick={() => handleRejectRequest(requestFromViewedProfile._id)} style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#ef4444", color: "#fff", cursor: "pointer" }}>Reject</button>
+          </div>
+        </div>
+      )}
+
+      {!isOwnProfile && profileFriendStatus === "none" && (
+        <div style={{
+          background: LightMode ? "#eef4ff" : "#1e293b",
+          borderRadius: 14,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          padding: 18,
+          marginBottom: 24,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap"
+        }}>
+          <span>Add this user as a friend?</span>
+          <button onClick={handleAddFriendFromProfile} style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#2563eb", color: "#fff", cursor: "pointer" }}>Add Friend</button>
+        </div>
+      )}
+
+      {!isOwnProfile && profileFriendStatus === "outgoing_pending" && (
+        <div style={{
+          background: LightMode ? "#eef4ff" : "#1e293b",
+          borderRadius: 14,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          padding: 18,
+          marginBottom: 24
+        }}>
+          Friend request pending.
+        </div>
+      )}
+
+      {!isOwnProfile && profileFriendStatus === "friends" && (
+        <div style={{
+          background: LightMode ? "#eef4ff" : "#1e293b",
+          borderRadius: 14,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          padding: 18,
+          marginBottom: 24
+        ,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap"
+        }}>
+          <span>Friends We Are</span>
+          <button
+            onClick={handleDeleteFriendFromProfile}
+            style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#ef4444", color: "#fff", cursor: "pointer" }}
+          >
+            Betray Friend?
+          </button>
+        </div>
+      )}
+
+      {isOwnProfile && (
+        <div style={{
+          background: LightMode ? "#eef4ff" : "#1e293b",
+          borderRadius: 14,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          padding: 24,
+          marginBottom: 32
+        }}>
+          <h3 style={{ marginTop: 0, marginBottom: 12 }}>Friends</h3>
+
+          <form onSubmit={handleSendFriendRequest} style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+            <input
+              value={friendCodeInput}
+              onChange={(e) => setFriendCodeInput(e.target.value)}
+              placeholder="Enter friend code"
+              maxLength={6}
+              style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", fontSize: 15, minWidth: 220 }}
+            />
+            <button type="submit" style={{ padding: "10px 16px", borderRadius: 6, border: "none", background: "#2563eb", color: "#fff", cursor: "pointer" }}>
+              Send Request
+            </button>
+          </form>
+
+          <h4 style={{ margin: "8px 0" }}>Incoming Requests</h4>
+          {friendsLoading && <div style={{ color: "#777" }}>Loading friends...</div>}
+          {!friendsLoading && incomingRequests.length === 0 && <div style={{ color: "#777", marginBottom: 12 }}>No incoming requests.</div>}
+          {!friendsLoading && incomingRequests.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+              {incomingRequests.map((req) => (
+                <div key={req._id} style={{ background: LightMode ? "#fff" : "#111827", borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <b>{req.sender_full_name || req.sender_username}</b>
+                    {(req.sender_student_id || (req.sender_role === "teacher" && req.sender_user_id)) && (
+                      <button
+                        onClick={() => goToUserProfile(req.sender_role, req.sender_student_id, req.sender_user_id)}
+                        style={{ marginLeft: 10, padding: "4px 8px", borderRadius: 6, border: "1px solid #94a3b8", background: "transparent", color: LightMode ? "#1f2937" : "#f3f4f6", cursor: "pointer" }}
+                      >
+                        View Profile
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => handleAcceptRequest(req._id)} style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#22c55e", color: "#fff", cursor: "pointer" }}>Accept</button>
+                    <button onClick={() => handleRejectRequest(req._id)} style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#ef4444", color: "#fff", cursor: "pointer" }}>Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <h4 style={{ margin: "8px 0" }}>Your Friends</h4>
+          {!friendsLoading && friends.length === 0 && <div style={{ color: "#777" }}>No friends yet.</div>}
+          {!friendsLoading && friends.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {friends.map((f) => (
+                <div key={f._id} style={{ background: LightMode ? "#fff" : "#111827", borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <button
+                      onClick={() => goToUserProfile(f.friend_role, f.friend_student_id, f.friend_user_id)}
+                      style={{ padding: 0, border: "none", background: "transparent", color: "#2563eb", textDecoration: "underline", cursor: (f.friend_student_id || (f.friend_role === "teacher" && f.friend_user_id)) ? "pointer" : "default", fontSize: 15 }}
+                      disabled={!f.friend_student_id && !(f.friend_role === "teacher" && f.friend_user_id)}
+                    >
+                      {f.friend_full_name || f.friend_username}
+                    </button>
+                  </div>
+                  <button onClick={() => handleDeleteFriend(f.friend_id)} style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#ef4444", color: "#fff", cursor: "pointer" }}>Betray Friend?</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <h3 style={{ marginBottom: 12, color: baseText }}>Reviews</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 32 }}>
-        {reviews.length === 0 && <div style={{ color: "#888" }}>No reviews yet.</div>}
+        {reviews.length === 0 && <div style={{ color: hintText }}>No reviews yet.</div>}
         {reviews.map((r, i) => (
           <div key={r._id || i} style={{
             background: LightMode ? "#fff" : "#18192b",
@@ -168,7 +557,7 @@ function StudentProfile({ LightMode }) {
             ) : (
               <>
                 <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 4 }}>Rating: {r.rating} / 5</div>
-                <div style={{ color: "#444", fontSize: 15 }}>{r.comment}</div>
+                <div style={{ color: softText, fontSize: 15 }}>{r.comment}</div>
                 {currentUserId && r.user_id === currentUserId && (
                   <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
                     <button onClick={() => startEdit(r)} style={{ padding: "6px 16px", borderRadius: 6, background: "#facc15", color: "#000", border: "none", cursor: "pointer" }}>Edit</button>
@@ -180,17 +569,27 @@ function StudentProfile({ LightMode }) {
           </div>
         ))}
       </div>
-      <h3 style={{ marginBottom: 10 }}>Post a Review</h3>
-      {auth ? (
+      <h3 style={{ marginBottom: 10, color: baseText }}>Post a Review</h3>
+      {canPostReview ? (
         <form onSubmit={handleReview} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 400 }}>
-          <input type="number" min="1" max="5" value={rating} onChange={e => setRating(Number(e.target.value))} required placeholder="Rating (1-5)" disabled={loading}
-            style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", fontSize: 16 }} />
+          <div>
+            <div style={{ marginBottom: 6, color: baseText }}>Rating</div>
+            {renderStars(rating, setRating)}
+          </div>
           <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Comment" required disabled={loading}
             style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", fontSize: 16 }} />
           <button type="submit" disabled={loading} style={{ padding: "10px 0", borderRadius: 6, background: "#2563eb", color: "#fff", fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer" }}>{loading ? "Submitting..." : "Submit"}</button>
         </form>
+      ) : auth && currentUser?.role === "teacher" ? (
+        <div style={{ color: hintText, marginTop: 8 }}>
+          You can only review students from your own school.
+        </div>
+      ) : auth ? (
+        <div style={{ color: hintText, marginTop: 8 }}>
+          Only teacher accounts can post reviews.
+        </div>
       ) : (
-        <div style={{ color: "#888", marginTop: 8 }}>
+        <div style={{ color: hintText, marginTop: 8 }}>
           Please <span style={{ color: "#2563eb", cursor: "pointer" }} onClick={() => navigate('/login')}>log in</span> to post a review.
         </div>
       )}
