@@ -45,20 +45,23 @@ def unique_student_id():
 # insert example data
 student_names = [
     "Alice Smith", "Bob Johnson", "Charlie Lee", "Diana King", "Evan Wright",
-    "Fiona Clark", "George Hall", "Hannah Young", "Ian Walker", "Julia Allen"
+    "Fiona Clark", "George Hall", "Hannah Young", "Ian Walker", "Julia Allen",
+    "Kevin Turner", "Laura Scott", "Michael Brown", "Nina Harris", "Oscar Lewis",
+    "Paula Martinez", "Quentin Reed", "Rachel Green", "Samuel Adams", "Tina Brooks"
 ]
 teacher_names = [
-    "Mr. Adams", "Ms. Baker", "Mrs. Carter", "Dr. Davis", "Prof. Evans"
+    "Mr. Adams", "Ms. Baker", "Mrs. Carter", "Dr. Davis", "Prof. Evans",
+    "Ms. Foster", "Mr. Grant", "Dr. Hill", "Mrs. Ingram", "Prof. Jones"
 ]
 schools = [
     "Central High", "Westview Academy", "Lakeside School", "Greenwood Prep", "Hillcrest Institute"
 ]
 
 
-# make 5 teacher users
+# make 10 teacher users
 teacher_ids = []
 teacher_usernames = []
-for i in range(5):
+for i in range(10):
     username = f"teacher{i+1}"
     full_name = teacher_names[i]
     school = random.choice(schools)
@@ -76,9 +79,9 @@ for i in range(5):
     teacher_ids.append(result.inserted_id)
     teacher_usernames.append(username)
 
-# make 10 student users
+# make 20 student users
 student_ids = []
-for i in range(10):
+for i in range(20):
     username = f"student{i+1}"
     full_name = student_names[i]
     school = random.choice(schools)
@@ -119,7 +122,7 @@ review_comments = [
 
 # make 2-5 fake reviews per student from random teachers
 for student_id in student_ids:
-    num_reviews = random.randint(2, 5)
+    num_reviews = random.randint(3, 5)
     used_teachers = set()
     for _ in range(num_reviews):
         # pick a  teacher who hasn't reviewed this student yet
@@ -150,5 +153,3 @@ for student in students_collection.find({}):
     students_collection.update_one({"_id": student_id}, {"$set": {"avg_rating": avg}})
 
 print("Example Data Done")
-
-
