@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
 from bson import ObjectId
@@ -425,40 +425,52 @@ def api_me():
      "student_id": user.get("student_id"), "friend_code": user.get("friend_code"), "full_name": user.get("full_name"),
      "school": user.get("school")})
 
-@app.route("/api/teacher/school_appeal/pending", methods=["GET"])
+@app.route("/api/school_appeal/pending", methods=["GET"])
 def api_get_pending_school_appeal():
     session_key = request.cookies.get("session_key")
     session_obj = sessions_collection.find_one({"session_key": session_key})
     if not session_obj:
         return jsonify({"success": False, "error": "Not authenticated."}), 401
 
-    teacher = users_collection.find_one({"_id": session_obj["user_id"]})
-    if not teacher or teacher.get("role") != "teacher":
-        return jsonify({"success": False, "error": "Only teachers can view appeals."}), 403
+    user = users_collection.find_one({"_id": session_obj["user_id"]})
+    if not user or user.get("role") not in ("teacher", "student"):
+        return jsonify({"success": False, "error": "Only teachers or students can view appeals."}), 403
 
-    pending = school_appeals_collection.find_one({
-        "teacher_id": teacher["_id"],
-        "status": "pending"
-    })
+    query = {"status": "pending"}
+    if user.get("role") == "teacher":
+        query["teacher_id"] = user["_id"]
+    else:
+        query["student_id"] = user["student_id"]
+
+    pending = school_appeals_collection.find_one(query)
     if not pending:
         return jsonify({"success": True, "appeal": None})
 
     pending["_id"] = str(pending["_id"])
-    pending["teacher_id"] = str(pending["teacher_id"])
+    if "teacher_id" in pending:
+        pending["teacher_id"] = str(pending["teacher_id"])
+    if "student_id" in pending:
+        pending["student_id"] = str(pending["student_id"])
     return jsonify({"success": True, "appeal": pending})
 
-@app.route("/api/teacher/school_appeal", methods=["POST"])
+@app.route("/api/school_appeal", methods=["POST"])
 def api_create_school_appeal():
     session_key = request.cookies.get("session_key")
     session_obj = sessions_collection.find_one({"session_key": session_key})
     if not session_obj:
         return jsonify({"success": False, "error": "Not authenticated."}), 401
 
-    teacher = users_collection.find_one({"_id": session_obj["user_id"]})
-    if not teacher or teacher.get("role") != "teacher":
-        return jsonify({"success": False, "error": "Only teachers can submit school appeals."}), 403
+    user = users_collection.find_one({"_id": session_obj["user_id"]})
+    if not user or user.get("role") not in ("teacher", "student"):
+        return jsonify({"success": False, "error": "Only teachers or students can submit school appeals."}), 403
 
-    existing = school_appeals_collection.find_one({"teacher_id": teacher["_id"], "status": "pending"})
+    # max one pending appeal per user
+    query = {"status": "pending"}
+    if user.get("role") == "teacher":
+        query["teacher_id"] = user["_id"]
+    else:
+        query["student_id"] = user["student_id"]
+    existing = school_appeals_collection.find_one(query)
     if existing:
         return jsonify({
             "success": False,
@@ -482,28 +494,34 @@ def api_create_school_appeal():
         return jsonify({"success": False, "error": "Inappropriate language detected."}), 400
 
     appeal = {
-        "teacher_id": teacher["_id"],
-        "teacher_username": teacher.get("username", ""),
-        "teacher_full_name": teacher.get("full_name", teacher.get("username", "")),
-        "current_school": teacher.get("school", ""),
+        "current_school": user.get("school", ""),
         "new_school": new_school,
         "reason": reason,
         "status": "pending",
         "created_at": datetime.utcnow().isoformat()
     }
+    if user.get("role") == "teacher":
+        appeal["teacher_id"] = user["_id"]
+        appeal["teacher_username"] = user.get("username", "")
+        appeal["teacher_full_name"] = user.get("full_name", user.get("username", ""))
+    else:
+        appeal["student_id"] = user["student_id"]
+        appeal["student_username"] = user.get("username", "")
+        appeal["student_full_name"] = user.get("full_name", user.get("username", ""))
+
     result = school_appeals_collection.insert_one(appeal)
     return jsonify({"success": True, "appeal_id": str(result.inserted_id), "message": "Appeal submitted."})
 
-@app.route("/api/teacher/school_appeal/<appeal_id>", methods=["DELETE"])
+@app.route("/api/school_appeal/<appeal_id>", methods=["DELETE"])
 def api_delete_school_appeal(appeal_id):
     session_key = request.cookies.get("session_key")
     session_obj = sessions_collection.find_one({"session_key": session_key})
     if not session_obj:
         return jsonify({"success": False, "error": "Not authenticated."}), 401
 
-    teacher = users_collection.find_one({"_id": session_obj["user_id"]})
-    if not teacher or teacher.get("role") != "teacher":
-        return jsonify({"success": False, "error": "Only teachers can delete school appeals."}), 403
+    user = users_collection.find_one({"_id": session_obj["user_id"]})
+    if not user or user.get("role") not in ("teacher", "student"):
+        return jsonify({"success": False, "error": "Only teachers or students can delete school appeals."}), 403
 
     try:
         appeal_obj_id = ObjectId(appeal_id)
@@ -513,8 +531,13 @@ def api_delete_school_appeal(appeal_id):
     appeal = school_appeals_collection.find_one({"_id": appeal_obj_id})
     if not appeal:
         return jsonify({"success": False, "error": "Appeal not found."}), 404
-    if appeal.get("teacher_id") != teacher["_id"]:
-        return jsonify({"success": False, "error": "Not authorized."}), 403
+    # Check ownership
+    if user.get("role") == "teacher":
+        if appeal.get("teacher_id") != user["_id"]:
+            return jsonify({"success": False, "error": "Not authorized."}), 403
+    else:
+        if appeal.get("student_id") != user["student_id"]:
+            return jsonify({"success": False, "error": "Not authorized."}), 403
     if appeal.get("status") != "pending":
         return jsonify({"success": False, "error": "Only pending appeals can be deleted."}), 400
 
@@ -533,7 +556,10 @@ def api_admin_inbox():
     appeals = list(school_appeals_collection.find({"status": "pending"}))
     for a in appeals:
         a["_id"] = str(a["_id"])
-        a["teacher_id"] = str(a["teacher_id"])
+        if "teacher_id" in a:
+            a["teacher_id"] = str(a["teacher_id"])
+        if "student_id" in a:
+            a["student_id"] = str(a["student_id"])
 
     return jsonify({"success": True, "appeals": appeals})
 
@@ -557,14 +583,42 @@ def api_admin_approve_appeal(appeal_id):
     if appeal.get("status") != "pending":
         return jsonify({"success": False, "error": "Appeal already processed."}), 400
 
-    users_collection.update_one(
-        {"_id": appeal["teacher_id"]},
-        {"$set": {"school": appeal.get("new_school", "")}}
-    )
+    # update user and student/teacher profile
+    target_user_id = None
+    target_role = None
+    if "teacher_id" in appeal:
+        users_collection.update_one(
+            {"_id": appeal["teacher_id"]},
+            {"$set": {"school": appeal.get("new_school", "")}}
+        )
+        target_user_id = appeal["teacher_id"]
+        target_role = "teacher"
+    elif "student_id" in appeal:
+        users_collection.update_one(
+            {"student_id": appeal["student_id"]},
+            {"$set": {"school": appeal.get("new_school", "")}}
+        )
+        students_collection.update_one(
+            {"_id": appeal["student_id"]},
+            {"$set": {"school": appeal.get("new_school", "")}}
+        )
+        target_user_id = appeal["student_id"]
+        target_role = "student"
+
     school_appeals_collection.update_one(
         {"_id": appeal_obj_id},
-        {"$set": {"status": "approved", "reviewed_at": datetime.utcnow().isoformat(), "reviewed_by": session_obj["user_id"]}}
+        {"$set": {"status": "approved", "reviewed_at": datetime.now(timezone.utc).isoformat(), "reviewed_by": session_obj["user_id"]}}
     )
+    # log admin action
+    admin_logs_collection.insert_one({
+        "admin_id": session_obj["user_id"],
+        "action": "approve_school_appeal",
+        "appeal_id": appeal_obj_id,
+        "target_user_id": target_user_id,
+        "target_role": target_role,
+        "new_school": appeal.get("new_school", ""),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
     return jsonify({"success": True, "message": "Appeal approved."})
 
 @app.route('/api/admin/appeal/<appeal_id>/reject', methods=['POST'])
@@ -587,10 +641,29 @@ def api_admin_reject_appeal(appeal_id):
     if appeal.get("status") != "pending":
         return jsonify({"success": False, "error": "Appeal already processed."}), 400
 
+    target_user_id = None
+    target_role = None
+    if "teacher_id" in appeal:
+        target_user_id = appeal["teacher_id"]
+        target_role = "teacher"
+    elif "student_id" in appeal:
+        target_user_id = appeal["student_id"]
+        target_role = "student"
+
     school_appeals_collection.update_one(
         {"_id": appeal_obj_id},
-        {"$set": {"status": "rejected", "reviewed_at": datetime.utcnow().isoformat(), "reviewed_by": session_obj["user_id"]}}
+        {"$set": {"status": "rejected", "reviewed_at": datetime.now(timezone.utc).isoformat(), "reviewed_by": session_obj["user_id"]}}
     )
+    # log admin action
+    admin_logs_collection.insert_one({
+        "admin_id": session_obj["user_id"],
+        "action": "reject_school_appeal",
+        "appeal_id": appeal_obj_id,
+        "target_user_id": target_user_id,
+        "target_role": target_role,
+        "new_school": appeal.get("new_school", ""),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
     return jsonify({"success": True, "message": "Appeal rejected."})
 
 
@@ -1010,7 +1083,7 @@ def api_admin_dismiss_report(report_id):
         "action": "dismiss_report",
         "report_id": report_obj_id,
         "review_id": report["review_id"],
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     })
     return jsonify({"success": True, "message": "Report dismissed."})
 
@@ -1055,27 +1128,26 @@ def api_admin_remove_report_review(report_id):
         "action": "remove_review",
         "report_id": report_obj_id,
         "review_id": review_id,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     })
     return jsonify({"success": True, "message": "Review removed."})
 
 # admin: get action log
 @app.route("/api/admin/logs", methods=["GET"])
 def api_admin_logs():
-    session_key = request.cookies.get("session_key")
-    session_obj = sessions_collection.find_one({"session_key": session_key})
-    if not session_obj:
-        return jsonify({"success": False, "error": "Not authenticated."}), 401
-    if not is_admin(session_obj["user_id"]):
-        return jsonify({"success": False, "error": "Admin only."}), 403
-
     logs = list(admin_logs_collection.find().sort("timestamp", -1).limit(100))
     for log in logs:
         log["_id"] = str(log["_id"])
-        log["admin_id"] = str(log["admin_id"])
-        log["review_id"] = str(log.get("review_id", ""))
-        log["report_id"] = str(log.get("report_id", "")) if log.get("report_id") else ""
-        log["appeal_id"] = str(log.get("appeal_id", "")) if log.get("appeal_id") else ""
+        if "admin_id" in log:
+            log["admin_id"] = str(log["admin_id"])
+        if "review_id" in log and log["review_id"]:
+            log["review_id"] = str(log["review_id"])
+        if "report_id" in log and log["report_id"]:
+            log["report_id"] = str(log["report_id"])
+        if "appeal_id" in log and log["appeal_id"]:
+            log["appeal_id"] = str(log["appeal_id"])
+        if "target_user_id" in log and log["target_user_id"]:
+            log["target_user_id"] = str(log["target_user_id"])
     return jsonify({"success": True, "logs": logs})
 
 # get valid report reasons

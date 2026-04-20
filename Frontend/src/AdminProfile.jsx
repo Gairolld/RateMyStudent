@@ -281,9 +281,29 @@ function AdminProfile({ LightMode }) {
               {logs.map((log) => (
                 <div key={log._id} style={{ background: LightMode ? "#fff" : "#1e293b", borderRadius: 8, padding: 10 }}>
                   <div style={{ fontWeight: 600, color: textPrimary }}>{log.action}</div>
-                  <div style={{ color: textSecondary, fontSize: 12 }}>
-                    Review ID: {log.review_id}
-                  </div>
+                  {log.action === "approve_school_appeal" || log.action === "reject_school_appeal" ? (
+                    <>
+                      <div style={{ color: textSecondary, fontSize: 12 }}>
+                        Appeal ID: {log.appeal_id}
+                      </div>
+                      <div style={{ color: textSecondary, fontSize: 12 }}>
+                        Target User ID: {log.target_user_id} ({log.target_role})
+                      </div>
+                      <div style={{ color: textSecondary, fontSize: 12 }}>
+                        New School: {log.new_school}
+                      </div>
+                    </>
+                  ) : null}
+                  {log.review_id && (
+                    <div style={{ color: textSecondary, fontSize: 12 }}>
+                      Review ID: {log.review_id}
+                    </div>
+                  )}
+                  {log.report_id && (
+                    <div style={{ color: textSecondary, fontSize: 12 }}>
+                      Report ID: {log.report_id}
+                    </div>
+                  )}
                   <div style={{ color: textSecondary, fontSize: 12 }}>
                     {log.timestamp}
                   </div>

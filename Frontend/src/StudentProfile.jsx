@@ -24,6 +24,10 @@ function StudentProfile({ LightMode }) {
   const [profileFriendStatus, setProfileFriendStatus] = useState(null);
   const [reportingReviewId, setReportingReviewId] = useState(null);
   const [reportReason, setReportReason] = useState("");
+  const [pendingAppeal, setPendingAppeal] = useState(null);
+  const [newSchool, setNewSchool] = useState("");
+  const [appealReason, setAppealReason] = useState("");
+  const [appealLoading, setAppealLoading] = useState(false);
   const REPORT_REASONS = ["Inappropriate language", "Harassment", "Spam", "Unfair review", "Other"];
   const baseText = LightMode ? "#111" : "#f3f4f6";
   const mutedText = LightMode ? "#666" : "#f3f4f6";
@@ -376,6 +380,74 @@ function StudentProfile({ LightMode }) {
     }
   };
 
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    fetch("/api/school_appeal/pending", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success) {
+          setPendingAppeal(data.appeal || null);
+        }
+      });
+  }, [isOwnProfile]);
+
+  const submitSchoolAppeal = async () => {
+    setAppealLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch("/api/school_appeal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ new_school: newSchool, reason: appealReason }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("School change appeal submitted.");
+        setNewSchool("");
+        setAppealReason("");
+
+        fetch("/api/school_appeal/pending", { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.success) {
+              setPendingAppeal(data.appeal || null);
+            }
+          });
+      } else {
+        setError(data.error || "Failed to submit appeal.");
+      }
+    } catch {
+      setError("Failed to submit appeal.");
+    }
+    setAppealLoading(false);
+  };
+
+  const deletePendingAppeal = async () => {
+    if (!pendingAppeal?._id) return;
+    if (!window.confirm("Delete your pending school appeal?")) return;
+    setAppealLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/school_appeal/${pendingAppeal._id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Pending appeal deleted.");
+        setPendingAppeal(null);
+      } else {
+        setError(data.error || "Failed to delete pending appeal.");
+      }
+    } catch {
+      setError("Failed to delete pending appeal.");
+    }
+    setAppealLoading(false);
+  };
+
   const renderStars = (selected, onSelect, size = 30) => (
     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
       {[1, 2, 3, 4, 5].map((value) => {
@@ -571,6 +643,65 @@ function StudentProfile({ LightMode }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {isOwnProfile && currentUser?.role === "student" && (
+        <div style={{
+          background: LightMode ? "#eef4ff" : "#1e293b",
+          borderRadius: 14,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          padding: 20,
+          marginBottom: 24,
+        }}>
+          <h3 style={{ marginTop: 0, color: baseText }}>Appeal School Change</h3>
+          {pendingAppeal ? (
+            <div>
+              <div style={{ color: hintText, marginBottom: 6 }}>
+                Pending appeal to change school to: <b>{pendingAppeal.new_school}</b>
+              </div>
+              <div style={{ color: hintText, marginBottom: 10 }}>
+                Reason: {pendingAppeal.reason}
+              </div>
+              <div style={{ color: hintText, marginBottom: 10 }}>
+                You can only have one pending appeal at a time. Delete this one to send a new appeal.
+              </div>
+              <button
+                type="button"
+                onClick={deletePendingAppeal}
+                disabled={appealLoading}
+                style={{ border: "none", borderRadius: 6, background: "#ef4444", color: "#fff", padding: "8px 12px", cursor: "pointer" }}
+              >
+                {appealLoading ? "Deleting..." : "Delete Pending Appeal"}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input
+                value={newSchool}
+                onChange={(e) => setNewSchool(e.target.value)}
+                placeholder="Requested new school"
+                style={{ padding: 10, borderRadius: 6, border: "1px solid #9ca3af", fontSize: 15 }}
+              />
+              <textarea
+                value={appealReason}
+                onChange={(e) => setAppealReason(e.target.value)}
+                placeholder="Reason for school change appeal"
+                rows={3}
+                style={{ padding: 10, borderRadius: 6, border: "1px solid #9ca3af", fontSize: 15, resize: "vertical" }}
+              />
+              <button
+                type="button"
+                onClick={submitSchoolAppeal}
+                disabled={appealLoading}
+                style={{ border: "none", borderRadius: 6, background: "#2563eb", color: "#fff", padding: "8px 12px", cursor: "pointer", width: "fit-content" }}
+              >
+                {appealLoading ? "Submitting..." : "Submit Appeal"}
+              </button>
+            </div>
+          )}
+          {success && <div style={{ marginTop: 10, color: "#22c55e" }}>{success}</div>}
+          {error && <div style={{ marginTop: 10, color: "#ef4444" }}>{error}</div>}
         </div>
       )}
 

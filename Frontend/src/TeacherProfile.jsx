@@ -33,7 +33,7 @@ function TeacherProfile({ LightMode }) {
     try {
       const [profileRes, appealRes] = await Promise.all([
         fetch(`/api/teacher/${teacherid}`, { credentials: "include" }),
-        fetch("/api/teacher/school_appeal/pending", { credentials: "include" }),
+        fetch("/api/school_appeal/pending", { credentials: "include" }),
       ]);
       const data = await profileRes.json();
       const appealData = await appealRes.json();
@@ -151,7 +151,7 @@ function TeacherProfile({ LightMode }) {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch("/api/teacher/school_appeal", {
+      const res = await fetch("/api/school_appeal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -179,7 +179,7 @@ function TeacherProfile({ LightMode }) {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`/api/teacher/school_appeal/${pendingAppeal._id}`, {
+      const res = await fetch(`/api/school_appeal/${pendingAppeal._id}`, {
         method: "DELETE",
         credentials: "include",
       });
