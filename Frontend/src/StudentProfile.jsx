@@ -22,6 +22,9 @@ function StudentProfile({ LightMode }) {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [profileFriendStatus, setProfileFriendStatus] = useState(null);
+  const [reportingReviewId, setReportingReviewId] = useState(null);
+  const [reportReason, setReportReason] = useState("");
+  const REPORT_REASONS = ["Inappropriate language", "Harassment", "Spam", "Unfair review", "Other"];
   const baseText = LightMode ? "#111" : "#f3f4f6";
   const mutedText = LightMode ? "#666" : "#f3f4f6";
   const softText = LightMode ? "#444" : "#e5e7eb";
@@ -339,6 +342,33 @@ function StudentProfile({ LightMode }) {
     }
   };
 
+  const handleReport = async (reviewId) => {
+    if (!reportReason) {
+      setError("Please select a reason.");
+      return;
+    }
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/review/${reviewId}/report`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reportReason }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Review reported.");
+        setReportingReviewId(null);
+        setReportReason("");
+      } else {
+        setError(data.error || "Failed to report review.");
+      }
+    } catch {
+      setError("Failed to report review.");
+    }
+  };
+
   const renderStars = (selected, onSelect, size = 30) => (
     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
       {[1, 2, 3, 4, 5].map((value) => {
@@ -562,6 +592,43 @@ function StudentProfile({ LightMode }) {
                   <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
                     <button onClick={() => startEdit(r)} style={{ padding: "6px 16px", borderRadius: 6, background: "#facc15", color: "#000", border: "none", cursor: "pointer" }}>Edit</button>
                     <button onClick={() => handleDelete(r._id)} style={{ padding: "6px 16px", borderRadius: 6, background: "#ef4444", color: "#fff", border: "none", cursor: "pointer" }}>Delete</button>
+                  </div>
+                )}
+                {currentUserId && r.user_id !== currentUserId && (
+                  <div style={{ marginTop: 8 }}>
+                    {reportingReviewId === r._id ? (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <select
+                          value={reportReason}
+                          onChange={e => setReportReason(e.target.value)}
+                          style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #ccc", fontSize: 14 }}
+                        >
+                          <option value="">Select reason...</option>
+                          {REPORT_REASONS.map(reason => (
+                            <option key={reason} value={reason}>{reason}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleReport(r._id)}
+                          style={{ padding: "6px 14px", borderRadius: 6, background: "#ef4444", color: "#fff", border: "none", cursor: "pointer", fontSize: 14 }}
+                        >
+                          Submit
+                        </button>
+                        <button
+                          onClick={() => { setReportingReviewId(null); setReportReason(""); }}
+                          style={{ padding: "6px 14px", borderRadius: 6, background: "#888", color: "#fff", border: "none", cursor: "pointer", fontSize: 14 }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setReportingReviewId(r._id); setReportReason(""); }}
+                        style={{ padding: "4px 12px", borderRadius: 6, background: "transparent", color: hintText, border: `1px solid ${hintText}`, cursor: "pointer", fontSize: 13 }}
+                      >
+                        Report
+                      </button>
+                    )}
                   </div>
                 )}
               </>

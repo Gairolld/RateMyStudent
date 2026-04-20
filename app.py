@@ -28,6 +28,8 @@ sessions_collection = db["sessions"]
 friend_requests_collection = db["friend_requests"]
 friends_collection = db["friends"]
 school_appeals_collection = db["school_change_appeals"]
+reports_collection = db["reports"]
+admin_logs_collection = db["admin_logs"]
 
 def create_admin_account():
     admin = users_collection.find_one({"role": "admin"})
@@ -400,16 +402,24 @@ def api_delete_review(review_id):
 @app.route("/search", methods=["GET"])
 def api_search():
     query = request.args.get("name", "").strip()
-    if not query:
-        return jsonify([])
 
-    # match by name OR school. partial match and case doesnt matter
-    students = list(students_collection.find({
-        "$or": [
-            {"name": {"$regex": query, "$options": "i"}},
-            {"school": {"$regex": query, "$options": "i"}}
-        ]
-    }))
+    # School search format: (School Name)
+    # Also supports live typing after '(' so results show before the closing ')'.
+    if query.startswith("("):
+        school_query = query[1:].strip()
+        if school_query.endswith(")"):
+            school_query = school_query[:-1].strip()
+
+        if school_query:
+            students = list(students_collection.find({
+                "school": {"$regex": school_query, "$options": "i"}
+            }))
+        else:
+            students = []
+    else:
+        students = list(students_collection.find({
+            "name": {"$regex": query, "$options": "i"}
+        }))
 
     for s in students:
         s["_id"] = str(s["_id"])
@@ -915,6 +925,177 @@ def api_get_friends():
         f["user_id"] = str(f["user_id"])
         f["friend_id"] = str(f["friend_id"])
     return jsonify(friends)
+
+
+# report a comment
+REPORT_REASONS = ["Inappropriate language", "Harassment", "Spam", "Unfair review", "Other"]
+
+@app.route("/api/review/<review_id>/report", methods=["POST"])
+def api_report_review(review_id):
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+
+    try:
+        review_obj_id = ObjectId(review_id)
+    except InvalidId:
+        return jsonify({"success": False, "error": "Invalid review id."}), 400
+
+    review = reviews_collection.find_one({"_id": review_obj_id})
+    if not review:
+        return jsonify({"success": False, "error": "Review not found."}), 404
+
+    data = request.get_json(force=True)
+    reason = data.get("reason", "").strip()
+    if reason not in REPORT_REASONS:
+        return jsonify({"success": False, "error": "Invalid report reason."}), 400
+
+    # flag the review
+    reviews_collection.update_one({"_id": review_obj_id}, {"$set": {"flagged": True}})
+
+    existing = reports_collection.find_one({"review_id": review_obj_id, "reporter_id": session_obj["user_id"]})
+    if existing:
+        return jsonify({"success": False, "error": "You already reported this review."}), 400
+
+    reports_collection.insert_one({
+        "review_id": review_obj_id,
+        "reporter_id": session_obj["user_id"],
+        "reason": reason,
+        "created_at": datetime.utcnow().isoformat(),
+        "status": "pending"
+    })
+    return jsonify({"success": True, "message": "Review reported."})
+
+# admin: get all flagged comments/reports
+@app.route("/api/admin/reports", methods=["GET"])
+def api_admin_reports():
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+    if not is_admin(session_obj["user_id"]):
+        return jsonify({"success": False, "error": "Admin only."}), 403
+
+    pending_reports = list(reports_collection.find({"status": "pending"}))
+    result = []
+    for rpt in pending_reports:
+        review = reviews_collection.find_one({"_id": rpt["review_id"]})
+        reporter = users_collection.find_one({"_id": rpt["reporter_id"]})
+        result.append({
+            "_id": str(rpt["_id"]),
+            "reason": rpt.get("reason", ""),
+            "created_at": rpt.get("created_at", ""),
+            "reporter_username": reporter["username"] if reporter else "Unknown",
+            "review_id": str(rpt["review_id"]),
+            "review_comment": review.get("comment", "") if review else "[deleted]",
+            "review_rating": review.get("rating", "") if review else "",
+            "review_student_id": review.get("student_id", "") if review else "",
+        })
+    return jsonify({"success": True, "reports": result})
+
+# admin: dismiss a report (keep the review, mark report resolved)
+@app.route("/api/admin/report/<report_id>/dismiss", methods=["POST"])
+def api_admin_dismiss_report(report_id):
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+    if not is_admin(session_obj["user_id"]):
+        return jsonify({"success": False, "error": "Admin only."}), 403
+
+    try:
+        report_obj_id = ObjectId(report_id)
+    except InvalidId:
+        return jsonify({"success": False, "error": "Invalid report id."}), 400
+
+    report = reports_collection.find_one({"_id": report_obj_id})
+    if not report:
+        return jsonify({"success": False, "error": "Report not found."}), 404
+
+    reports_collection.update_one({"_id": report_obj_id}, {"$set": {"status": "dismissed"}})
+    # unflag the review if no other pending reports
+    other_pending = reports_collection.find_one({"review_id": report["review_id"], "status": "pending"})
+    if not other_pending:
+        reviews_collection.update_one({"_id": report["review_id"]}, {"$set": {"flagged": False}})
+
+    admin_logs_collection.insert_one({
+        "admin_id": session_obj["user_id"],
+        "action": "dismiss_report",
+        "report_id": report_obj_id,
+        "review_id": report["review_id"],
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    return jsonify({"success": True, "message": "Report dismissed."})
+
+# admin: remove review tied to a report
+@app.route("/api/admin/report/<report_id>/remove", methods=["DELETE"])
+def api_admin_remove_report_review(report_id):
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+    if not is_admin(session_obj["user_id"]):
+        return jsonify({"success": False, "error": "Admin only."}), 403
+
+    try:
+        report_obj_id = ObjectId(report_id)
+    except InvalidId:
+        return jsonify({"success": False, "error": "Invalid report id."}), 400
+
+    report = reports_collection.find_one({"_id": report_obj_id})
+    if not report:
+        return jsonify({"success": False, "error": "Report not found."}), 404
+
+    review_id = report["review_id"]
+    review = reviews_collection.find_one({"_id": review_id})
+
+    if review:
+        student_id = review.get("student_id")
+        reviews_collection.delete_one({"_id": review_id})
+        # recalculate avg_rating
+        if student_id:
+            all_reviews = list(reviews_collection.find({"student_id": student_id}))
+            avg = 0
+            if len(all_reviews) > 0:
+                avg = round(sum(r["rating"] for r in all_reviews) / len(all_reviews), 2)
+            students_collection.update_one({"_id": student_id}, {"$set": {"avg_rating": avg}})
+
+    # resolve all reports for this review
+    reports_collection.update_many({"review_id": review_id}, {"$set": {"status": "removed"}})
+
+    admin_logs_collection.insert_one({
+        "admin_id": session_obj["user_id"],
+        "action": "remove_review",
+        "report_id": report_obj_id,
+        "review_id": review_id,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    return jsonify({"success": True, "message": "Review removed."})
+
+# admin: get action log
+@app.route("/api/admin/logs", methods=["GET"])
+def api_admin_logs():
+    session_key = request.cookies.get("session_key")
+    session_obj = sessions_collection.find_one({"session_key": session_key})
+    if not session_obj:
+        return jsonify({"success": False, "error": "Not authenticated."}), 401
+    if not is_admin(session_obj["user_id"]):
+        return jsonify({"success": False, "error": "Admin only."}), 403
+
+    logs = list(admin_logs_collection.find().sort("timestamp", -1).limit(100))
+    for log in logs:
+        log["_id"] = str(log["_id"])
+        log["admin_id"] = str(log["admin_id"])
+        log["review_id"] = str(log.get("review_id", ""))
+        log["report_id"] = str(log.get("report_id", "")) if log.get("report_id") else ""
+        log["appeal_id"] = str(log.get("appeal_id", "")) if log.get("appeal_id") else ""
+    return jsonify({"success": True, "logs": logs})
+
+# get valid report reasons
+@app.route("/api/report_reasons", methods=["GET"])
+def api_report_reasons():
+    return jsonify({"success": True, "reasons": REPORT_REASONS})
 
 
 if __name__ == '__main__':
