@@ -138,6 +138,17 @@ for student_id in student_ids:
             "visible_to_friends": True
         })
 
+
+# update avg_rating for each student
+for student in students_collection.find({}):
+    student_id = student["_id"]
+    reviews = list(reviews_collection.find({"student_id": student_id}))
+    if reviews:
+        avg = round(sum(r["rating"] for r in reviews) / len(reviews), 2)
+    else:
+        avg = 0
+    students_collection.update_one({"_id": student_id}, {"$set": {"avg_rating": avg}})
+
 print("Example Data Done")
 
 

@@ -62,12 +62,16 @@ function StudentProfile({ LightMode }) {
       });
   }, []);
 
+  useEffect(() => {
+    setSuccess("");
+    setError("");
+  }, [userid]);
+
   const isOwnProfile = Boolean(currentUser && String(currentUser.student_id) === String(userid));
   const canPostReview = Boolean(
     auth &&
     currentUser &&
-    currentUser.role === "teacher" &&
-    (currentUser.school || "").trim().toLowerCase() === (student?.school || "").trim().toLowerCase()
+    currentUser.role === "teacher"
   );
 
   const loadFriendsData = async () => {
@@ -147,6 +151,7 @@ function StudentProfile({ LightMode }) {
       if (data.success) {
         setSuccess("Review posted!");
         setReviews((prev) => [...prev, { _id: data.review_id, rating, comment, user_id: currentUserId }]);
+        setStudent((prev) => prev ? { ...prev, avg_rating: data.avg_rating } : prev);
         setRating(0);
         setComment("");
       } else {
@@ -171,6 +176,7 @@ function StudentProfile({ LightMode }) {
       if (data.success) {
         setSuccess("Review deleted.");
         setReviews((prev) => prev.filter((r) => r._id !== reviewId));
+        setStudent((prev) => prev ? { ...prev, avg_rating: data.avg_rating } : prev);
       } else {
         setError(data.error || "Failed to delete review");
       }
@@ -206,6 +212,7 @@ function StudentProfile({ LightMode }) {
       if (data.success) {
         setSuccess("Review updated.");
         setReviews((prev) => prev.map((r) => r._id === editReviewId ? { ...r, rating: editRating, comment: editComment } : r));
+        setStudent((prev) => prev ? { ...prev, avg_rating: data.avg_rating } : prev);
         cancelEdit();
       } else {
         setError(data.error || "Failed to update review");
@@ -400,6 +407,9 @@ function StudentProfile({ LightMode }) {
   if (error) return <div style={{ color: "red", padding: 24 }}>{error}</div>;
   if (!student) return <div style={{ padding: 24 }}>Loading...</div>;
 
+  // doublecheck if the current teacher has already reviewed this student
+  const hasReviewed = currentUser && currentUser.role === "teacher" && reviews.some(r => r.user_id === currentUserId);
+
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: 24, color: baseText }}>
       <div style={{
@@ -577,7 +587,8 @@ function StudentProfile({ LightMode }) {
           }}>
             {editReviewId === r._id ? (
               <form onSubmit={handleEdit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <input type="number" min="1" max="5" value={editRating} onChange={e => setEditRating(Number(e.target.value))} required style={{ padding: 8, borderRadius: 6, border: "1px solid #ccc", fontSize: 15 }} />
+                <div style={{ marginBottom: 6 }}>{renderStars(editRating, setEditRating, 40)}</div>
+                <input type="number" min="1" max="5" value={editRating} onChange={e => setEditRating(Number(e.target.value))} required style={{ display: 'none' }} />
                 <input value={editComment} onChange={e => setEditComment(e.target.value)} required style={{ padding: 8, borderRadius: 6, border: "1px solid #ccc", fontSize: 15 }} />
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="submit" style={{ padding: "6px 16px", borderRadius: 6, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer" }}>Save</button>
@@ -637,19 +648,31 @@ function StudentProfile({ LightMode }) {
         ))}
       </div>
       <h3 style={{ marginBottom: 10, color: baseText }}>Post a Review</h3>
-      {canPostReview ? (
-        <form onSubmit={handleReview} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 400 }}>
-          <div>
-            <div style={{ marginBottom: 6, color: baseText }}>Rating</div>
-            {renderStars(rating, setRating)}
-          </div>
-          <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Comment" required disabled={loading}
-            style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", fontSize: 16 }} />
-          <button type="submit" disabled={loading} style={{ padding: "10px 0", borderRadius: 6, background: "#2563eb", color: "#fff", fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer" }}>{loading ? "Submitting..." : "Submit"}</button>
-        </form>
+      {canPostReview && hasReviewed ? (
+        <div style={{ color: hintText, marginBottom: 32 }}>
+          You have already submitted a review for this student.
+        </div>
+      ) : canPostReview ? (
+        <div style={{
+          background: LightMode ? "#fff" : "#18192b",
+          borderRadius: 10,
+          boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+          padding: 18,
+          marginBottom: 32
+        }}>
+          <form onSubmit={handleReview} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div>
+              <div style={{ marginBottom: 6, color: baseText }}>Rating</div>
+              {renderStars(rating, setRating, 40)}
+            </div>
+            <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Comment" required disabled={loading}
+              style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", fontSize: 16 }} />
+            <button type="submit" disabled={loading} style={{ padding: "10px 0", borderRadius: 6, background: "#2563eb", color: "#fff", fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer" }}>{loading ? "Submitting..." : "Submit"}</button>
+          </form>
+        </div>
       ) : auth && currentUser?.role === "teacher" ? (
         <div style={{ color: hintText, marginTop: 8 }}>
-          You can only review students from your own school.
+          You can review any student.
         </div>
       ) : auth ? (
         <div style={{ color: hintText, marginTop: 8 }}>
