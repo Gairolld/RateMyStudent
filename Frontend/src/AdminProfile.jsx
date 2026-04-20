@@ -10,7 +10,7 @@ function AdminProfile({ LightMode }) {
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("appeals");
 
-  const textPrimary = LightMode ? "#111827" : "#f9fafb";
+  const textPrimary = LightMode ? "#18181b" : "#f9fafb";
   const textSecondary = LightMode ? "#374151" : "#d1d5db";
 
   const loadInbox = async () => {

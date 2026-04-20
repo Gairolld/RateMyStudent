@@ -24,7 +24,7 @@ function TeacherProfile({ LightMode }) {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
 
-  const textPrimary = LightMode ? "#111827" : "#f9fafb";
+  const textPrimary = LightMode ? "#18181b" : "#f9fafb";
   const textSecondary = LightMode ? "#374151" : "#d1d5db";
 
   const loadProfile = async () => {

@@ -29,10 +29,10 @@ function StudentProfile({ LightMode }) {
   const [appealReason, setAppealReason] = useState("");
   const [appealLoading, setAppealLoading] = useState(false);
   const REPORT_REASONS = ["Inappropriate language", "Harassment", "Spam", "Unfair review", "Other"];
-  const baseText = LightMode ? "#111" : "#f3f4f6";
-  const mutedText = LightMode ? "#666" : "#f3f4f6";
-  const softText = LightMode ? "#444" : "#e5e7eb";
-  const hintText = LightMode ? "#888" : "#d1d5db";
+  const baseText = LightMode ? "#18181b" : "#f9fafb";
+  const mutedText = LightMode ? "#374151" : "#d1d5db";
+  const softText = LightMode ? "#4b5563" : "#d1d5db";
+  const hintText = LightMode ? "#64748b" : "#a1a1aa";
   const starOutline = LightMode ? "#111" : "#fff";
 
   useEffect(() => {
