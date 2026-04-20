@@ -283,11 +283,6 @@ def api_post_review(userid):
     if reviewer.get("role") != "teacher":
         return jsonify({"success": False, "error": "Only teachers can post reviews."}), 403
 
-    teacher_school = (reviewer.get("school") or "").strip().lower()
-    student_school = (student.get("school") or "").strip().lower()
-    if not teacher_school or teacher_school != student_school:
-        return jsonify({"success": False, "error": "Teachers can only review students at their own school."}), 403
-
     existing_review = reviews_collection.find_one({
         "student_id": userid,
         "user_id": session_obj["user_id"]
@@ -402,23 +397,14 @@ def api_delete_review(review_id):
 @app.route("/search", methods=["GET"])
 def api_search():
     query = request.args.get("name", "").strip()
-
-    # School search format: (School Name)
-    # Also supports live typing after '(' so results show before the closing ')'.
-    if query.startswith("("):
-        school_query = query[1:].strip()
-        if school_query.endswith(")"):
-            school_query = school_query[:-1].strip()
-
-        if school_query:
-            students = list(students_collection.find({
-                "school": {"$regex": school_query, "$options": "i"}
-            }))
-        else:
-            students = []
+    if not query:
+        students = []
     else:
         students = list(students_collection.find({
-            "name": {"$regex": query, "$options": "i"}
+            "$or": [
+                {"name": {"$regex": query, "$options": "i"}},
+                {"school": {"$regex": query, "$options": "i"}}
+            ]
         }))
 
     for s in students:
