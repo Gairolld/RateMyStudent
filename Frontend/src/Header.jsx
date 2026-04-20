@@ -1,12 +1,36 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, myStudentId, myUserId, myRole }) {
+function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, myStudentId, myUserId, myRole, searchResults, searching }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
+  const [inputWidth, setInputWidth] = useState(0);
 
-  // only show search bar on some pages (AKA not login)
+  useEffect(() => {
+    if (inputRef.current) {
+      setInputWidth(inputRef.current.offsetWidth);
+    }
+  }, [query, LightMode]);
+
   const showSearch = location.pathname !== "/login";
+
+  const handleInputChange = (e) => {
+    setQuery(e.target.value);
+    setShowDropdown(true);
+  };
+
+  const handleResultClick = (studentId) => {
+    setShowDropdown(false);
+    setQuery("");
+    navigate(`/student/${studentId}`);
+  };
+
+  const handleBlur = (e) => {
+    setTimeout(() => setShowDropdown(false), 120);
+  };
 
   return (
     <header style={{
@@ -50,12 +74,15 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
         </div>
       </div>
       {showSearch && (
-        <form onSubmit={e => { e.preventDefault(); onSearch && onSearch(); }} style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 18, position: "relative" }}>
           <input
+            ref={inputRef}
             type="text"
             placeholder="Find a Student"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={handleInputChange}
+            onFocus={() => setShowDropdown(true)}
+            onBlur={handleBlur}
             style={{
               padding: "10px",
               fontSize: "16px",
@@ -66,8 +93,52 @@ function Header({ onSearch, query, setQuery, LightMode, auth, handleLogout, mySt
               color: LightMode ? "#000" : "#fff",
               background: LightMode ? "#fff" : "#222"
             }}
+            autoComplete="off"
           />
-        </form>
+          {showDropdown && query.trim() && (
+            <div
+              ref={dropdownRef}
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: 48,
+                transform: "translateX(-50%)",
+                width: inputWidth || 320,
+                background: LightMode ? "#fff" : "#23243a",
+                color: LightMode ? "#111" : "#f3f4f6",
+                border: "1px solid #ccc",
+                borderRadius: 8,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.13)",
+                zIndex: 2000,
+                maxHeight: 320,
+                overflowY: "auto"
+              }}
+            >
+              {searching ? (
+                <div style={{ padding: 16, textAlign: "center" }}>Searching...</div>
+              ) : searchResults && searchResults.length > 0 ? (
+                searchResults.slice(0, 8).map((student) => (
+                  <div
+                    key={student._id}
+                    onMouseDown={() => handleResultClick(student._id)}
+                    style={{
+                      padding: "10px 18px",
+                      cursor: "pointer",
+                      borderBottom: LightMode ? "1px solid #f1f1f1" : "1px solid #23243a",
+                      fontWeight: 500,
+                      fontSize: 16,
+                      background: "none"
+                    }}
+                  >
+                    {student.name} <span style={{ color: LightMode ? "#666" : "#d1d5db", fontWeight: 400, fontSize: 14 }}>({student.school})</span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: 16, color: LightMode ? "#888" : "#d1d5db", textAlign: "center" }}>No students found.</div>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </header>
   );
@@ -86,4 +157,3 @@ const buttonStyle = {
 };
 
 export default Header;
-

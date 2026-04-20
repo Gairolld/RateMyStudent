@@ -4,7 +4,6 @@ import Login from "./Login";
 import StudentProfile from "./StudentProfile";
 import TeacherProfile from "./TeacherProfile";
 import AdminProfile from "./AdminProfile";
-import SearchResults from "./SearchResults";
 import Header from "./Header";
 import myImage from "./assets/pic1.jpg";
 import myImage2 from "./assets/pic2.jpg";
@@ -36,7 +35,6 @@ function App() {
       .catch(() => setAuth({ loggedIn: false, studentId: null, userId: null, role: null }));
   }, []);
 
-  // live search as you type
   useEffect(() => {
     if (query.trim() === "") {
       setSearchResults([]);
@@ -50,17 +48,10 @@ function App() {
       .finally(() => setSearching(false));
   }, [query]);
 
-  // logout
   const handleLogout = async () => {
     await fetch("/logout", { method: "POST", credentials: "include" });
     setAuth({ loggedIn: false, studentId: null, userId: null, role: null });
     navigate("/login");
-  };
-
-  const handleSearch = () => {
-    if (query.trim()) {
-      navigate("/");
-    }
   };
 
   return (
@@ -69,7 +60,6 @@ function App() {
       style={{ backgroundColor: LightMode ? "#fff" : "#121212", minHeight: "100vh" }}
     >
       <Header
-        onSearch={handleSearch}
         query={query}
         setQuery={setQuery}
         LightMode={LightMode}
@@ -78,14 +68,14 @@ function App() {
         myStudentId={auth.studentId}
         myUserId={auth.userId}
         myRole={auth.role}
+        searchResults={searchResults}
+        searching={searching}
       />
       <Routes>
         <Route
           path="/"
           element={
             <div style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-              {searching && <div style={{ textAlign: "center" }}>Searching...</div>}
-              {searchResults.length > 0 && <SearchResults results={searchResults} LightMode={LightMode} />}
               {/* Images and info */}
               <div style={{ display: "flex", justifyContent: "space-between", gap: "0px", marginTop: "60px" }}>
                 <img src={myImage} alt="My image" style={{ padding: "20px 0px", width: "275px", height: "183px", objectFit: "cover", borderRadius: 12 }} />
