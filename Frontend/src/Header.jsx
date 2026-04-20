@@ -92,7 +92,7 @@ function Header({ onSearch, query, setQuery, LightMode, setLightMode, auth, hand
           )}
         </div>
       </div>
-      {showSearch && (
+       {showSearch && auth && auth.loggedIn && (
         <div style={{ display: "flex", justifyContent: "center", marginTop: 18, position: "relative" }}>
           <input
             ref={inputRef}
