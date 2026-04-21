@@ -9,12 +9,19 @@ function Header({ onSearch, query, setQuery, LightMode, setLightMode, auth, hand
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
   const [inputWidth, setInputWidth] = useState(0);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   useEffect(() => {
     if (inputRef.current) {
       setInputWidth(inputRef.current.offsetWidth);
     }
   }, [query, LightMode]);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const showSearch = location.pathname !== "/login";
 
@@ -44,21 +51,23 @@ function Header({ onSearch, query, setQuery, LightMode, setLightMode, auth, hand
           >
             <FiHome size={26} style={{ margin: 0, verticalAlign: "middle", display: "block" }} />
           </button>
-          <span
-            style={{
-              fontWeight: 800,
-              fontSize: 28,
-              letterSpacing: 1,
-              marginLeft: 24,
-              cursor: "pointer",
-              fontFamily: 'Inter, Segoe UI, Arial, sans-serif',
-              color: LightMode ? "#f9fafb" : "#f9fafb",
-              textShadow: LightMode ? "0 2px 8px rgba(0,0,0,0.13)" : "0 2px 8px rgba(0,0,0,0.22)"
-            }}
-            onClick={() => navigate("/")}
-          >
-            RateMyStudent
-          </span>
+          {windowWidth >= 1056 && (
+            <span
+              style={{
+                fontWeight: 800,
+                fontSize: 28,
+                letterSpacing: 1,
+                marginLeft: 24,
+                cursor: "pointer",
+                fontFamily: 'Inter, Segoe UI, Arial, sans-serif',
+                color: LightMode ? "#f9fafb" : "#f9fafb",
+                textShadow: LightMode ? "0 2px 8px rgba(0,0,0,0.13)" : "0 2px 8px rgba(0,0,0,0.22)"
+              }}
+              onClick={() => navigate("/")}
+            >
+              RateMyStudent
+            </span>
+          )}
         </div>
         <div style={centerNavStyleFlex}>
           {showSearch && auth && auth.loggedIn && (
@@ -102,13 +111,15 @@ function Header({ onSearch, query, setQuery, LightMode, setLightMode, auth, hand
           )}
         </div>
         <div style={rightNavStyleFlex}>
-          <button
-            onClick={() => setLightMode(!LightMode)}
-            style={lightModeButtonStyleWide(LightMode)}
-          >
-            <span style={{ marginRight: 8 }}>{LightMode ? "🌙" : "☀️"}</span>
-            <span>{LightMode ? "Dark" : "Light"}</span>
-          </button>
+          {windowWidth >= 1056 && (
+            <button
+              onClick={() => setLightMode(!LightMode)}
+              style={lightModeButtonStyleWide(LightMode)}
+            >
+              <span style={{ marginRight: 8 }}>{LightMode ? "🌙" : "☀️"}</span>
+              <span>{LightMode ? "Dark" : "Light"}</span>
+            </button>
+          )}
           {auth && auth.loggedIn ? (
             <>
               {myStudentId && (
