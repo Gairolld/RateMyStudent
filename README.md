@@ -15,6 +15,7 @@
    SECRET_KEY=your_secret_key
    ```
    > **Note:** See how to create and connect a MongoDB Atlas cluster here: https://www.mongodb.com/docs/atlas/getting-started/.  
+   >
    > The `SECRET_KEY` can be any random string; it is used for cryptographic signing (e.g., session tokens).
 3. Install Python dependencies:
    ```sh
